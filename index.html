@@ -177,9 +177,14 @@
   }
   .dialog .btn:hover { filter: brightness(1.08); }
   .dialog .btn.secondary { background: #2e2e42; color: var(--text); }
-  .modes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .modes .btn { flex: 1; min-width: 170px; }
-  .modes small { display: block; font-weight: 600; font-size: 0.78rem; opacity: 0.75; margin-top: 2px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .modes .btn { margin-top: 0; padding: 12px 10px; font-size: 1rem; text-align: center; border-radius: 14px; }
+  .modes .btn.wide { grid-column: 1 / -1; }
+  .modes small { display: block; font-weight: 600; font-size: 0.76rem; opacity: 0.75; margin-top: 3px; }
+  .chip {
+    display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: 999px;
+    background: #2e2e42; color: var(--muted); font-size: 0.78rem; font-weight: 600; vertical-align: middle;
+  }
   .rules { text-align: left; margin: 12px 0 4px; padding-left: 20px; color: var(--muted); line-height: 1.6; }
 
   .slide-in { animation: slideIn 0.45s ease-out; }
@@ -202,7 +207,7 @@
 </head>
 <body>
 <header>
-  <h1>🎵 Starsza czy <span>młodsza?</span></h1>
+  <h1>🎵 Starsza czy <span>młodsza?</span><span class="chip" id="modeChip" hidden></span></h1>
   <div class="hright">
     <div class="volume" id="volumeBox">
       <button id="muteBtn" aria-label="Wycisz" title="Wycisz / włącz dźwięk">🔊</button>
@@ -260,9 +265,13 @@
       <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
       <li>Jedna pomyłka kończy grę. Jak długą serię zrobisz?</li>
     </ul>
+    <p style="margin-top:12px">Wybierz kategorię:</p>
     <div class="modes">
-      <button class="btn" data-mode="pl">🇵🇱 Polskie hity<small>tylko polskie piosenki</small></button>
-      <button class="btn secondary" data-mode="mix">🌍 Mix<small>polskie + kilka zagranicznych</small></button>
+      <button class="btn" data-mode="rap">🎤 Rap<small>polski hip-hop</small></button>
+      <button class="btn" data-mode="pop">🔥 Popularne<small>hity od 2000 roku</small></button>
+      <button class="btn" data-mode="classic">📻 Klasyki<small>od lat 30. do 1999</small></button>
+      <button class="btn" data-mode="pl">🇵🇱 Wszystkie polskie<small>rap + hity + klasyki</small></button>
+      <button class="btn secondary wide" data-mode="mix">🌍 Mix<small>wszystkie polskie + kilka zagranicznych</small></button>
     </div>
   </div>
 </div>
@@ -373,11 +382,44 @@ const SONGS_PL = [
   ["Ostatnia nadzieja", "sanah & Dawid Podsiadło", 2022],
   ["River", "Ochman", 2022],
   ["Solo", "Blanka", 2022],
-  ["Dom nad wodą", "Pezet & Auer", 2022],
   ["The Tower", "Luna", 2024],
   ["Gaja", "Justyna Steczkowska", 2024],
-  ["Woda księżycowa", "Kubi Producent, bambi, Fukaj, stickxr", 2024],
   ["Och i ach", "Sylwia Grzeszczak", 2024]
+];
+
+const SONGS_RAP = [
+  ["Scyzoryk", "Liroy", 1995],
+  ["+ i –", "Kaliber 44", 1996],
+  ["Armagedon", "Molesta", 1998],
+  ["Wiedziałem, że tak będzie", "Molesta", 1998],
+  ["Jestem Bogiem", "Paktofonika", 2000],
+  ["Ja to ja", "Paktofonika", 2000],
+  ["Chwile ulotne", "Paktofonika", 2000],
+  ["Głucha noc", "Slums Attack", 2001],
+  ["Damy radę", "WWO", 2002],
+  ["Szósty zmysł", "Pezet & Noon", 2004],
+  ["Ważne", "Mezo & Tabb feat. Kasia Wilk", 2005],
+  ["Rap to nie zabawa już", "Abradab", 2005],
+  ["Noc i dzień", "Pezet", 2007],
+  ["Na szczycie", "Grubson", 2009],
+  ["Jedność", "Hemp Gru", 2011],
+  ["To nic nie znaczy", "Łona i Webber", 2011],
+  ["Następna stacja", "Taco Hemingway", 2015],
+  ["Deszcz na betonie", "Taco Hemingway", 2016],
+  ["Nostalgia", "Taco Hemingway", 2017],
+  ["Candy", "Quebonafide", 2017],
+  ["Tamagotchi", "Taconafide", 2018],
+  ["Rockstar", "White 2115", 2018],
+  ["Nigdy ponad stan", "KęKę", 2018],
+  ["Patointeligencja", "Mata", 2019],
+  ["Schodki", "Mata", 2019],
+  ["Impreza", "Sobel", 2019],
+  ["Jesteś ładniejsza niż na zdjęciach (na zawsze)", "Bedoes & Lanek", 2019],
+  ["Bubbletea", "Quebonafide feat. Daria Zawiałow", 2020],
+  ["Kiss cam (podryw roku)", "Mata", 2021],
+  ["Szklanki", "Young Leosia", 2021],
+  ["Dom nad wodą", "Pezet & Auer", 2022],
+  ["Woda księżycowa", "Kubi Producent, bambi, Fukaj, stickxr", 2024]
 ];
 
 const SONGS_WORLD = [
@@ -412,8 +454,22 @@ const SONGS_WORLD = [
 
 const toObj = ([title, artist, year]) => ({ title, artist, year });
 const ALL_PL = SONGS_PL.map(toObj);
+const ALL_RAP = SONGS_RAP.map(toObj);
 const ALL_WORLD = SONGS_WORLD.map(toObj);
-[...ALL_PL, ...ALL_WORLD].forEach((s, i) => s.hue = (i * 137) % 360);
+[...ALL_PL, ...ALL_RAP, ...ALL_WORLD].forEach((s, i) => s.hue = (i * 137) % 360);
+
+const MODES = {
+  rap:     { label: "🎤 Rap",               songs: ALL_RAP },
+  pop:     { label: "🔥 Popularne",         songs: ALL_PL.filter(s => s.year >= 2000) },
+  classic: { label: "📻 Klasyki",           songs: ALL_PL.filter(s => s.year < 2000) },
+  pl:      { label: "🇵🇱 Wszystkie polskie", songs: [...ALL_PL, ...ALL_RAP] },
+  mix:     { label: "🌍 Mix",               songs: [...ALL_PL, ...ALL_RAP, ...ALL_WORLD] },
+};
+document.querySelectorAll("[data-mode]").forEach(btn => {
+  const n = MODES[btn.dataset.mode].songs.length;
+  btn.querySelector("small").textContent += ` · ${n} piosenek`;
+  if (n < 10) btn.hidden = true;   // za mało piosenek, żeby grać
+});
 
 const $ = id => document.getElementById(id);
 let pool = [], deck = [], a = null, b = null, score = 0, best = 0, locked = false, mode = "pl";
@@ -494,7 +550,7 @@ function pickBest(results, s) {
     if (!r.previewUrl) continue;
     const rt = norm(r.trackName || ""), ra = norm(r.artistName || "");
     let sc = 0;
-    if (rt === t) sc += 3; else if (rt.startsWith(t) || rt.includes(t)) sc += 2; else continue;
+    if (rt === t) sc += 3; else if (t.length >= 3 && (rt.startsWith(t) || rt.includes(t))) sc += 2; else continue;
     if (ra.includes(firstArtist)) sc += 3;
     if (/karaoke|cover|tribute|instrumental/.test(rt + " " + ra)) sc -= 4;
     if (sc > bestScore) { bestScore = sc; bestR = r; }
@@ -702,7 +758,9 @@ function yearsWord(n) {
 }
 
 function startGame() {
-  pool = mode === "pl" ? ALL_PL : [...ALL_PL, ...ALL_WORLD];
+  pool = MODES[mode].songs;
+  $("modeChip").textContent = MODES[mode].label;
+  $("modeChip").hidden = false;
   loadBest();
   score = 0;
   deck = shuffle([...pool]);
