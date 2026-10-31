@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Starsza czy młodsza?</title>
+<title>Muzyczne gry – Starsza czy młodsza? i inne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gry.css">
 <style>
   :root {
     --bg: #0f0f17;
@@ -339,8 +340,22 @@
   </section>
 </main>
 
+<div class="overlay" id="hubOverlay">
+  <div class="dialog hub">
+    <h2>🎵 Muzyczne gry</h2>
+    <p>Polskie piosenki w czterech odsłonach. Wybierz grę:</p>
+    <div class="hub-grid">
+      <button class="hub-card" data-game="starsza"><span class="hub-ic">🕰️</span><b>Starsza czy młodsza?</b><small>Zgadnij, która piosenka jest starsza. Solo, na czas i ze znajomymi na żywo.</small></button>
+      <button class="hub-card" data-game="czworki"><span class="hub-ic">🧩</span><b>Muzyczne czwórki</b><small>16 piosenek, 4 ukryte grupy. Nowa plansza codziennie.</small></button>
+      <button class="hub-card" data-game="detektyw"><span class="hub-ic">🕵️</span><b>Muzyczny detektyw</b><small>Pytaj „tak / nie” i odgadnij piosenkę komputera, zanim on odgadnie Twoją.</small></button>
+      <button class="hub-card" data-game="kod"><span class="hub-ic">🔐</span><b>Muzyczny kod</b><small>Które 4 z 8 piosenek są w kodzie? Ułóż je od najstarszej.</small></button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay show" id="startOverlay">
   <div class="dialog">
+    <button class="back-hub link-btn">← Wszystkie gry</button>
     <h2>🎶 Starsza czy młodsza?</h2>
     <p>Zgadnij, która piosenka powstała wcześniej.</p>
     <ul class="rules">
@@ -390,6 +405,86 @@
     <p id="shareStatus" class="share-status"></p>
   </div>
 </div>
+
+<section class="screen" id="scrCzworki" hidden>
+  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🧩 Muzyczne czwórki</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-body">
+    <p class="scr-sub" id="czSub"></p>
+    <p class="scr-help">Znajdź 4 grupy po 4 piosenki, które coś łączy – wykonawca, rok wydania albo motyw w tytule. Kliknij ▶, żeby posłuchać. Możesz pomylić się 3 razy, czwarta pomyłka kończy grę.</p>
+    <div id="czSolved"></div>
+    <div class="cz-grid" id="czGrid"></div>
+    <div class="cz-mistakes" id="czMistakes"></div>
+    <div class="scr-actions" id="czControls">
+      <button class="btn secondary" id="czShuffle">🔀 Przetasuj</button>
+      <button class="btn secondary" id="czClear">Odznacz</button>
+      <button class="btn" id="czSubmit">Sprawdź</button>
+    </div>
+    <div class="scr-result" id="czResult" hidden>
+      <h3 id="czResultTitle"></h3><p id="czResultInfo"></p>
+      <button class="btn" id="czShare">📤 Udostępnij wynik</button>
+    </div>
+    <div class="scr-opts">
+      <button class="btn secondary" id="czDaily">📅 Plansza dnia</button>
+      <button class="btn secondary" id="czRandom">🎲 Losowa plansza</button>
+      <label class="toggle"><input type="checkbox" id="czHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="scrDetektyw" hidden>
+  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🕵️ Muzyczny detektyw</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-body">
+    <p class="scr-help">Ty i komputer macie po jednej ukrytej piosence z planszy. Na zmianę zadajecie pytania „tak / nie”, a odpowiedzi skreślają piosenki. Kliknij piosenkę, żeby strzelić – pomyłka oznacza przegraną.</p>
+    <div class="det-top"><div class="det-mine" id="detMine"></div><div class="det-cpu" id="detCpu"></div></div>
+    <div class="det-confirm" id="detConfirm" hidden>
+      <span id="detConfirmText"></span>
+      <div><button class="btn" id="detYes">🎯 Strzelam!</button> <button class="btn secondary" id="detNo">Anuluj</button></div>
+    </div>
+    <div class="scr-result" id="detResult" hidden>
+      <h3 id="detResultTitle"></h3><p id="detResultInfo"></p>
+      <button class="btn" id="detAgain">Zagraj jeszcze raz</button>
+    </div>
+    <div class="det-layout">
+      <div class="det-grid" id="detGrid"></div>
+      <div class="det-side">
+        <p class="det-turn" id="detTurn"></p>
+        <div class="det-questions" id="detQuestions"></div>
+        <ol class="det-log" id="detLog"></ol>
+      </div>
+    </div>
+    <div class="scr-opts">
+      <button class="btn secondary" id="detNew">🔄 Nowa gra</button>
+      <label class="toggle"><input type="checkbox" id="detSmart"> 🤖 Trudny komputer</label>
+      <label class="toggle"><input type="checkbox" id="detHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="scrKod" hidden>
+  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🔐 Muzyczny kod</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-body">
+    <p class="scr-sub" id="kodSub"></p>
+    <p class="scr-help">Komputer wybrał 4 z tych 8 piosenek i ułożył je od najstarszej do najmłodszej. Klikaj piosenki, żeby ułożyć swój zestaw, i sprawdź: <b>●</b> dobra piosenka na dobrym miejscu, <b>○</b> piosenka jest w kodzie, ale na innym miejscu. Masz 8 prób.</p>
+    <div class="kod-pool" id="kodPool"></div>
+    <div id="kodPlay">
+      <p class="kod-tries" id="kodTries"></p>
+      <div class="kod-slots" id="kodSlots"></div>
+      <div class="scr-actions"><button class="btn secondary" id="kodClear">Wyczyść</button><button class="btn" id="kodCheck">Sprawdź</button></div>
+    </div>
+    <div class="scr-result" id="kodResult" hidden>
+      <h3 id="kodResultTitle"></h3><ol class="kod-solution" id="kodSolution"></ol>
+      <button class="btn" id="kodShare">📤 Udostępnij wynik</button>
+    </div>
+    <ol class="kod-history" id="kodHistory"></ol>
+    <div class="scr-opts">
+      <button class="btn secondary" id="kodDaily">📅 Kod dnia</button>
+      <button class="btn secondary" id="kodRandom">🎲 Losowy kod</button>
+      <select id="kodMode" aria-label="Kategoria"></select>
+      <label class="toggle"><input type="checkbox" id="kodEasy"> Łatwy (piosenki z różnych dekad)</label>
+    </div>
+  </div>
+</section>
+<div class="toast" id="toast"></div>
 
 <div class="overlay" id="liveOverlay">
   <div class="dialog live">
@@ -1852,5 +1947,6 @@ $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
+<script src="gry.js"></script>
 </body>
 </html>
