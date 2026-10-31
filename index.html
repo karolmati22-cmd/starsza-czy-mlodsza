@@ -780,31 +780,87 @@ function pickBest(results, s) {
 
 let apiWorked = false;
 
-// Szuka fragmentu kilkoma sposobami; zwraca { url, track, query } albo null.
+// Czy utwór z Apple to na pewno ta piosenka (identyfikatory bywają pomylone)?
+function similar(a, b) {
+  if (!a || !b) return 0;
+  const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return 1 - d[m][n] / Math.max(m, n);
+}
+function titleOk(r, s) {
+  const rt = norm((r.trackName || "").replace(/\(.*?\)|\[.*?\]/g, ""));
+  return [norm(cleanTitle(s)), norm(s.title)].some(t =>
+    rt === t || (t.length >= 3 && rt.includes(t)) || (rt.length >= 3 && t.includes(rt)) || similar(rt, t) >= 0.75);
+}
+
+function handleApiError(e) {
+  if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return "blocked"; }
+  if (e.message === "blocked") throttledUntil = Date.now() + 30000;   // chwilowy limit Apple
+  return "transient";
+}
+
+// Wynik sprawdzenia identyfikatora: piosenka -> { status: "ok" | "mismatch" | "missing", track }
+const idCheck = new Map();
+
+function matchById(s, tracks) {
+  if (s.id) {
+    const r = tracks.find(t => t.trackId === s.id);
+    if (!r) return null;
+    if (!r.previewUrl) return { status: "missing", track: r };
+    return titleOk(r, s) ? { status: "ok", track: r } : { status: "mismatch", track: r };
+  }
+  const albumTracks = tracks.filter(t => t.collectionId === s.albumId);
+  if (!albumTracks.length) return null;
+  const r = pickBest(albumTracks, s) || albumTracks.find(t => t.previewUrl && titleOk(t, s));
+  return r ? { status: "ok", track: r } : { status: "mismatch", track: albumTracks[0] };
+}
+
+// Sprawdza identyfikatory wielu piosenek naraz (kilka zapytań zamiast setek).
+async function prefetchIds(songs) {
+  let todo = songs.filter(s => (s.id || s.albumId) && !idCheck.has(s));
+  for (const country of ["PL", "US"]) {
+    const trackSongs = todo.filter(s => s.id), albumSongs = todo.filter(s => !s.id);
+    const batches = [];
+    for (let i = 0; i < trackSongs.length; i += 120) batches.push({ songs: trackSongs.slice(i, i + 120), entity: "" });
+    for (let i = 0; i < albumSongs.length; i += 4) batches.push({ songs: albumSongs.slice(i, i + 4), entity: "&entity=song&limit=200" });
+    for (const b of batches) {
+      const ids = [...new Set(b.songs.map(s => s.id || s.albumId))].join(",");
+      let data;
+      try { data = await jsonp(`https://itunes.apple.com/lookup?id=${ids}&country=${country}${b.entity}`); apiWorked = true; }
+      catch (e) { if (handleApiError(e) === "blocked") return; continue; }
+      const tracks = (data.results || []).filter(r => r.wrapperType === "track");
+      for (const s of b.songs) {
+        const res = matchById(s, tracks);
+        if (res && (res.status === "ok" || country === "US")) idCheck.set(s, res);
+        if (res && res.status === "ok") {
+          const url = res.track.previewUrl;
+          if (!previews.has(s)) previews.set(s, Promise.resolve(url));
+          try { localStorage.setItem(cacheKey(s), JSON.stringify({ url, t: Date.now() })); } catch (e) {}
+        }
+      }
+    }
+    todo = todo.filter(s => !idCheck.has(s) || idCheck.get(s).status !== "ok");
+  }
+  for (const s of todo) if (!idCheck.has(s)) idCheck.set(s, { status: "missing" });
+}
+
+// Szuka fragmentu; zwraca { url, track, query } albo null.
 async function findPreview(s) {
   const artist = splitArtists(s)[0] || s.artist, title = cleanTitle(s);
+  // Najpierw dokładny utwór / album po identyfikatorze Apple (o ile nie wiemy już, że nie pasuje)
+  if ((s.id || s.albumId) && !idCheck.has(s)) await prefetchIds([s]);
+  const c = idCheck.get(s);
+  if (c && c.status === "ok") return { url: c.track.previewUrl, track: c.track, query: "id " + (s.id || s.albumId) };
+  if (apiBlocked) return null;
+  if (Date.now() < throttledUntil) throw new Error("transient");
+
   const tries = [
     [artist + " " + title, "PL", 25],
     [title, "PL", 50],
     [artist, "PL", 200],
   ];
-  let transient = false;
-  // Najpierw dokładny utwór / album po identyfikatorze Apple
-  for (const country of ["PL", "US"]) {
-    if (!s.id && !s.albumId) break;
-    try {
-      const data = await jsonp(`https://itunes.apple.com/lookup?id=${s.id || s.albumId}&country=${country}&entity=song`);
-      apiWorked = true;
-      const results = (data.results || []).filter(r => r.wrapperType === "track");
-      const r = s.id ? results.find(r => r.trackId === s.id && r.previewUrl) : pickBest(results, s);
-      if (r) return { url: r.previewUrl, track: r, query: "id " + (s.id || s.albumId) + " [" + country + "]" };
-    } catch (e) {
-      if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return null; }
-      if (e.message === "blocked") throttledUntil = Date.now() + 30000;
-      transient = true; break;
-    }
-  }
-  if (transient) throw new Error("transient");
   for (const [term, country, limit] of tries) {
     try {
       const data = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${country}&media=music&entity=song&limit=${limit}`);
@@ -812,18 +868,16 @@ async function findPreview(s) {
       const r = pickBest(data.results || [], s);
       if (r) return { url: r.previewUrl, track: r, query: term + " [" + country + "]" };
     } catch (e) {
-      if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return null; }
-      if (e.message === "blocked") throttledUntil = Date.now() + 30000;   // chwilowy limit Apple
-      transient = true; break;
+      if (handleApiError(e) === "blocked") return null;
+      throw new Error("transient");
     }
   }
-  if (transient) throw new Error("transient");
   return null;
 }
 
 // Znalezione fragmenty zapamiętujemy w przeglądarce (7 dni), żeby nie pytać Apple ponownie.
 const RETRY = "retry";
-const cacheKey = s => "scm-prev:" + s.artist + "|" + s.title;
+const cacheKey = s => "scm-prev2:" + s.artist + "|" + s.title;
 function cachedUrl(s) {
   try {
     const c = JSON.parse(localStorage.getItem(cacheKey(s)) || "null");
@@ -832,14 +886,21 @@ function cachedUrl(s) {
   return null;
 }
 
+let prefetching = null;   // trwające hurtowe sprawdzanie identyfikatorów
+
 // Zwraca adres fragmentu, null (Apple nie ma piosenki) albo RETRY (chwilowy problem – można spróbować ponownie).
 function getPreview(s) {
   if (!previews.has(s)) {
     const hit = cachedUrl(s);
-    const p = hit ? Promise.resolve(hit) : findPreview(s).then(res => {
+    const p = hit ? Promise.resolve(hit) : (async () => {
+      if (prefetching && (s.id || s.albumId)) {
+        await prefetching;
+        if (previews.has(s) && previews.get(s) !== p) return previews.get(s);
+      }
+      const res = await findPreview(s);
       if (res) try { localStorage.setItem(cacheKey(s), JSON.stringify({ url: res.url, t: Date.now() })); } catch (e) {}
       return res && res.url;
-    }, () => { previews.delete(s); return RETRY; });
+    })().catch(() => { previews.delete(s); return RETRY; });
     previews.set(s, p);
   }
   return previews.get(s);
@@ -1041,6 +1102,9 @@ function startGame() {
   locked = false;
   $("startOverlay").classList.remove("show");
   $("endOverlay").classList.remove("show");
+  // Wszystkie identyfikatory Apple z tej kategorii sprawdzamy hurtem na starcie.
+  const run = prefetchIds(pool).catch(() => {}).finally(() => { if (prefetching === run) prefetching = null; });
+  prefetching = run;
   render();
   if ($("autoplay").checked) togglePlay(b);
 }
@@ -1065,42 +1129,53 @@ async function runDiagnostics(modeKey) {
   $("diagOverlay").classList.add("show");
   $("diagTabs").innerHTML = Object.keys(MODES).map(k =>
     `<a href="#diagnostyka-${k}" class="${k === modeKey ? "on" : ""}">${MODES[k].label}</a>`).join("");
-  const list = MODES[modeKey].songs, ol = $("diagList"), lines = [];
+  const list = MODES[modeKey].songs, ol = $("diagList"), lines = [], problems = [];
+  const still = () => location.hash === "#diagnostyka-" + modeKey;
   ol.innerHTML = "";
-  queryGap = 3200;   // Apple pozwala na ok. 20 zapytań na minutę
-  let ok = 0, done = 0;
+  const info = t => $("diagInfo").textContent = t;
+  const fmt = (icon, song, rest) => `${icon} ${song.title} – ${song.artist} (${song.year}) → ${rest}`;
+  const add = (line, problem) => {
+    const li = document.createElement("li"); li.textContent = line; ol.appendChild(li);
+    lines.push(line); if (problem) problems.push(line);
+  };
+
+  // 1) identyfikatory – hurtem
+  info("Sprawdzam identyfikatory Apple Music…");
+  queryGap = 1500;
+  await prefetchIds(list);
+  if (!still()) return;
+  const toSearch = [];
+  let ok = 0;
   for (const song of list) {
-    if (location.hash !== "#diagnostyka-" + modeKey) return;
-    const li = document.createElement("li");
-    li.textContent = `⏳ ${song.title} – ${song.artist} (${song.year})`;
-    ol.appendChild(li);
-    li.scrollIntoView({ block: "nearest" });
+    const c = idCheck.get(song);
+    if (c && c.status === "ok") { ok++; add(fmt("✅", song, `ID: „${c.track.trackName}” / ${c.track.artistName}`)); }
+    else {
+      if (c && c.status === "mismatch") song._note = `ID wskazuje inny utwór: „${c.track.trackName}” / ${c.track.artistName}`;
+      else if (c) song._note = "ID nie działa w Apple (PL/US)";
+      toSearch.push(song);
+    }
+  }
+
+  // 2) pozostałe – przez wyszukiwarkę (wolniej, Apple ogranicza zapytania)
+  queryGap = 3200;
+  let done = 0;
+  for (const song of toSearch) {
+    if (!still()) return;
+    info(`Identyfikatory OK: ${ok}/${list.length} · szukam pozostałych: ${done}/${toSearch.length} (ok. 3–10 s na piosenkę)…`);
     let res = null, err = false;
     for (let attempt = 0; attempt < 3; attempt++) {
       try { res = await findPreview(song); err = false; break; }
-      catch (e) {
-        err = true;
-        li.textContent = `⏸ ${song.title} – limit zapytań Apple, czekam ~30 s…`;
-        await new Promise(r => setTimeout(r, Math.max(throttledUntil - Date.now(), 5000) + 1000));
-      }
+      catch (e) { err = true; await new Promise(r => setTimeout(r, Math.max(throttledUntil - Date.now(), 5000) + 1000)); }
     }
     done++;
-    let line;
-    if (res) {
-      ok++;
-      const t = res.track;
-      line = `✅ ${song.title} – ${song.artist} (${song.year}) → „${t.trackName}” / ${t.artistName} / album: ${t.collectionName}`;
-    } else if (err) {
-      line = `⚠️ ${song.title} – ${song.artist} (${song.year}) → błąd połączenia / limit zapytań`;
-    } else {
-      line = `❌ ${song.title} – ${song.artist} (${song.year}) → nie znaleziono`;
-    }
-    li.textContent = line;
-    lines.push(line);
-    $("diagInfo").textContent = `Sprawdzono ${done}/${list.length} · znaleziono ${ok}` + (done < list.length ? " · trwa (ok. 3 s na zapytanie)…" : " · gotowe ✔");
+    const note = song._note ? ` [${song._note}]` : "";
+    if (res) { ok++; add(fmt("🔎", song, `wyszukiwarka: „${res.track.trackName}” / ${res.track.artistName} / ${res.track.collectionName}${note}`), true); }
+    else if (err) add(fmt("⚠️", song, `limit zapytań / błąd połączenia${note}`), true);
+    else add(fmt("❌", song, `nie znaleziono${note}`), true);
   }
+  info(`Gotowe ✔ · gra ${ok}/${list.length} · do sprawdzenia: ${problems.length} (lista poniżej, problemy na końcu)`);
   $("diagCopy").onclick = async () => {
-    const text = `Diagnostyka ${MODES[modeKey].label}: ${ok}/${list.length}\n` + lines.join("\n");
+    const text = `Diagnostyka ${MODES[modeKey].label}: gra ${ok}/${list.length}\n` + (problems.length ? problems.join("\n") : "wszystko gra");
     try { await navigator.clipboard.writeText(text); $("diagCopy").textContent = "✔ Skopiowano"; }
     catch (e) { $("diagCopy").textContent = "Nie udało się skopiować – zaznacz listę ręcznie"; }
   };
