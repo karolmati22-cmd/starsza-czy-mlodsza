@@ -213,6 +213,49 @@
   }
   .seg button.on { background: #fff; color: #111; }
   .seg-hint { font-size: 0.85rem; margin: 6px 0 0 !important; }
+  .btn.friends { display: block; width: 100%; margin-top: 12px; background: #3b82f6; color: #fff; border-radius: 14px; }
+  .challenge .btn { margin-top: 10px; }
+  .name-row { display: flex; gap: 8px; margin-top: 12px; }
+  .name-row input, .field input, .code-row input, #lvMode, .invite input {
+    flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid #3a3a50;
+    background: #12121c; color: var(--text); font: inherit;
+  }
+  .name-row .btn, .code-row .btn, .invite .btn { margin-top: 0; padding: 10px 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; text-align: left; margin-top: 12px; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+  .live .btn { display: block; width: 100%; }
+  .live .code-row .btn, .live .invite .btn { width: auto; display: inline-block; }
+  .or { margin: 16px 0 6px !important; font-size: 0.85rem; }
+  .code-row, .invite { display: flex; gap: 8px; margin-top: 8px; }
+  .code-row input { text-transform: uppercase; letter-spacing: 0.3em; font-weight: 800; text-align: center; }
+  .invite input { font-size: 0.8rem; color: var(--muted); }
+  .lv-status { min-height: 1.2em; margin: 6px 0 0 !important; font-size: 0.85rem; color: var(--ok) !important; }
+  #lvMode { width: 100%; margin-top: 8px; }
+  .lv-settings { margin-top: 10px !important; color: var(--text) !important; font-weight: 600; }
+  .lv-players { list-style: none; text-align: left; margin: 12px 0 0; padding: 0; }
+  .lv-players li, .live-board li {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; background: #26263a; margin-bottom: 6px;
+  }
+  .lv-players li.me, .live-board li.me { outline: 2px solid var(--accent); }
+  .lv-players .nm, .live-board .nm { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-players .sc, .live-board .sc { font-weight: 800; color: var(--accent); font-size: 1.15rem; min-width: 2ch; text-align: right; }
+  .lv-players .st, .live-board .st { font-size: 0.8rem; color: var(--muted); min-width: 64px; text-align: right; }
+  .lv-wait { margin-top: 10px !important; font-size: 0.9rem; }
+  .countdown { font-size: 6rem; font-weight: 800; color: var(--accent); line-height: 1.2; }
+  .live-board {
+    position: fixed; left: 16px; bottom: 16px; z-index: 10; width: 240px; padding: 10px;
+    background: rgba(15, 15, 23, 0.88); border-radius: 14px; backdrop-filter: blur(6px);
+  }
+  .live-board h3 { font-size: 0.85rem; color: var(--muted); margin: 0 0 8px; }
+  .live-board ol { list-style: none; margin: 0; padding: 0; }
+  .live-board li { padding: 6px 10px; margin-bottom: 4px; font-size: 0.9rem; }
+  @media (max-width: 760px) {
+    .live-board { left: 8px; right: 8px; bottom: 8px; width: auto; padding: 6px 8px; }
+    .live-board h3 { display: none; }
+    .live-board ol { display: flex; gap: 6px; overflow-x: auto; }
+    .live-board li { margin: 0; flex: 0 0 auto; padding: 5px 9px; }
+    .live-board .st { display: none; }
+    body.live-on main { padding-bottom: 54px; }
+  }
   .share-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .share-row .btn { margin-top: 12px; }
   .share-status { min-height: 1.4em; margin-top: 10px; color: var(--ok) !important; font-weight: 600; }
@@ -306,7 +349,10 @@
       <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
       <li>Grasz do pierwszego błędu albo na czas: 60 sekund na jak najwięcej trafień.</li>
     </ul>
-    <p class="challenge" id="challenge" hidden></p>
+    <div class="challenge" id="challenge" hidden>
+      <div id="challengeText"></div>
+      <button class="btn" id="challengeGo" hidden>▶ Przyjmij wyzwanie</button>
+    </div>
     <p style="margin-top:12px">Tryb gry:</p>
     <div class="seg" id="gameType">
       <button data-type="classic" class="on">♾ Do pierwszego błędu</button>
@@ -321,6 +367,7 @@
       <button class="btn" data-mode="pl">🇵🇱 Wszystkie polskie<small>rap + hity + klasyki</small></button>
       <button class="btn secondary wide" data-mode="mix">🌍 Mix<small>wszystkie polskie + kilka zagranicznych</small></button>
     </div>
+    <button class="btn friends" id="friendsBtn">👥 Graj ze znajomymi na żywo</button>
   </div>
 </div>
 
@@ -335,10 +382,65 @@
       <button class="btn secondary" id="shareBtn">📤 Udostępnij wynik</button>
       <button class="btn secondary" id="menuBtn">Zmień tryb</button>
     </div>
+    <div class="name-row" id="nameRow" hidden>
+      <input id="nameInput" maxlength="20" placeholder="Twoje imię (podpis wyzwania)">
+      <button class="btn" id="nameOk">Udostępnij</button>
+    </div>
     <textarea id="shareText" readonly hidden></textarea>
     <p id="shareStatus" class="share-status"></p>
   </div>
 </div>
+
+<div class="overlay" id="liveOverlay">
+  <div class="dialog live">
+    <div id="lvMenu">
+      <h2>👥 Graj ze znajomymi</h2>
+      <p>Załóż pokój i wyślij znajomym link. Gracie naraz na tych samych piosenkach, a wyniki wszystkich widać na żywo.</p>
+      <label class="field">Twoje imię<input id="lvName1" maxlength="20" placeholder="np. Karol"></label>
+      <button class="btn" id="lvCreate">➕ Utwórz pokój</button>
+      <p class="or">albo dołącz kodem pokoju</p>
+      <div class="code-row"><input id="lvCode" maxlength="4" placeholder="KOD" autocapitalize="characters"><button class="btn secondary" id="lvJoinCode">Dołącz</button></div>
+      <button class="btn secondary" id="lvBack">← Wróć</button>
+    </div>
+    <div id="lvJoin" hidden>
+      <h2>👥 Zaproszenie do gry</h2>
+      <p>Dołączasz do pokoju <b id="lvJoinLabel"></b>.</p>
+      <label class="field">Twoje imię<input id="lvName2" maxlength="20" placeholder="np. Ola"></label>
+      <button class="btn" id="lvJoinBtn">Dołącz do gry</button>
+      <button class="btn secondary" id="lvJoinCancel">Anuluj</button>
+    </div>
+    <div id="lvConnecting" hidden>
+      <h2>⏳ Łączenie…</h2>
+      <p id="lvConnMsg">Łączę się z serwerem gry…</p>
+      <button class="btn secondary" id="lvConnCancel">Anuluj</button>
+    </div>
+    <div id="lvLobby" hidden>
+      <h2 id="lvTitle">Pokój</h2>
+      <div class="invite">
+        <input id="lvLink" readonly>
+        <button class="btn secondary" id="lvShare">📤 Zaproś</button>
+      </div>
+      <p class="lv-status" id="lvShareStatus"></p>
+      <div id="lvHostCtl">
+        <div class="seg" id="lvType">
+          <button data-type="classic">♾ Do pierwszego błędu</button>
+          <button data-type="timed">⏱ Na czas · 60 s</button>
+        </div>
+        <select id="lvMode"></select>
+      </div>
+      <p class="lv-settings" id="lvSettings"></p>
+      <ol class="lv-players" id="lvPlayers"></ol>
+      <p class="lv-wait" id="lvWait"></p>
+      <button class="btn" id="lvStart">▶ Start</button>
+      <button class="btn secondary" id="lvLeave">Wyjdź z pokoju</button>
+    </div>
+    <div id="lvCountdown" hidden>
+      <p>Startujemy! <b id="lvCdMode"></b></p>
+      <div class="countdown" id="liveCountdown">3</div>
+    </div>
+  </div>
+</div>
+<div class="live-board" id="liveBoard" hidden></div>
 
 <div class="overlay" id="diagOverlay">
   <div class="dialog diag">
@@ -1073,9 +1175,21 @@ $("bPlay").onclick = () => togglePlay(b);
 
 /* ===================== Gra ===================== */
 
+// Losowanie z „ziarnem”: to samo ziarno = ta sama kolejność piosenek u każdego gracza.
+function mulberry32(a) {
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+let rng = Math.random, seed = 0;
+let ctx = null;   // null = gra solo, { kind: "challenge", from, score, seed } albo { kind: "live" }
+
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
@@ -1158,12 +1272,14 @@ function guess(older) {
       vs.className = "vs ok"; vs.textContent = "✓";
       score++;
       $("score").textContent = score;
+      liveScoreChanged();
       if (score > best) { best = score; $("best").textContent = best; saveBest(); }
       next(timed ? 450 : 1100);
     } else if (timed) {
       // Na czas: pomyłka zabiera sekundy, gra toczy się dalej
       vs.className = "vs bad"; vs.textContent = "✗";
       mistakes++;
+      liveScoreChanged();
       endsAt -= PENALTY * 1000;
       const pen = $("penalty"); pen.classList.remove("show"); void pen.offsetWidth; pen.classList.add("show");
       $("cardB").classList.add("shake");
@@ -1180,6 +1296,7 @@ function guess(older) {
 
 function gameOver() {
   stopTimer();
+  if (ctx && ctx.kind === "live") { liveGameOver(); return; }
   const diff = Math.abs(a.year - b.year);
   $("endMsg").textContent = timed
     ? `⏱ Czas minął! Trafienia: ${score} · pomyłki: ${mistakes}`
@@ -1188,6 +1305,15 @@ function gameOver() {
   const great = timed ? 20 : 15, good = timed ? 10 : 7;
   $("endTitle").textContent = score >= great ? "🏆 Mistrz muzyki!" : score >= good ? "🔥 Świetny wynik!" : timed ? "Czas minął!" : "Koniec gry!";
   $("endBest").textContent = score === best && score > 0 ? "Nowy rekord! 🎉" : `Twój rekord: ${best}`;
+  if (ctx && ctx.kind === "challenge") {
+    const them = ctx.score, who = ctx.from;
+    const tally = `Ty: ${score} · ${who}: ${them}`;
+    $("endBest").textContent = score > them ? `🏆 Wygrywasz! ${tally}`
+      : score < them ? `Wygrywa ${who}. ${tally}. Spróbuj jeszcze raz!` : `Remis! ${tally}`;
+  }
+  $("againBtn").textContent = ctx && ctx.kind === "challenge" ? "Spróbuj jeszcze raz (te same piosenki)" : "Zagraj jeszcze raz";
+  $("shareBtn").textContent = ctx && ctx.kind === "challenge" ? "📤 Odpowiedz wyzwaniem" : "📤 Rzuć wyzwanie znajomym";
+  $("nameRow").hidden = true;
   $("shareStatus").textContent = "";
   $("shareText").hidden = true;
   $("endOverlay").classList.add("show");
@@ -1199,7 +1325,10 @@ function yearsWord(n) {
   return (l >= 2 && l <= 4 && (t < 12 || t > 14)) ? "lata" : "lat";
 }
 
-function startGame() {
+function startGame(opts) {
+  opts = opts && typeof opts.seed === "number" ? opts : {};
+  seed = typeof opts.seed === "number" ? opts.seed >>> 0 : (Math.random() * 2 ** 32) >>> 0;
+  rng = mulberry32(seed);
   pool = MODES[mode].songs;
   $("modeChip").textContent = MODES[mode].label;
   $("modeChip").hidden = false;
@@ -1222,25 +1351,61 @@ function startGame() {
   if ($("autoplay").checked) togglePlay(b);
 }
 
-document.querySelectorAll("[data-mode]").forEach(btn => btn.onclick = () => { mode = btn.dataset.mode; startGame(); });
+document.querySelectorAll("[data-mode]").forEach(btn => btn.onclick = () => { mode = btn.dataset.mode; ctx = null; startGame(); });
 $("btnOlder").onclick = () => guess(true);
 $("btnYounger").onclick = () => guess(false);
-$("againBtn").onclick = startGame;
+$("againBtn").onclick = () => ctx && ctx.kind === "challenge" ? startGame({ seed: ctx.seed }) : startGame();
 
 /* ===================== Udostępnianie wyniku ===================== */
 
+// Wyzwanie: link zawiera ziarno (te same piosenki), kategorię, tryb, imię i wynik.
+function b64e(str) {
+  let bin = ""; new TextEncoder().encode(str).forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64d(str) {
+  const bin = atob(str.replace(/-/g, "+").replace(/_/g, "/"));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+function parseChallenge(code) {
+  try {
+    const o = JSON.parse(b64d(code));
+    if (MODES[o.m] && Number.isFinite(o.s) && Number.isFinite(o.p)) return o;
+  } catch (e) {}
+  return null;
+}
+
+let playerName = "";
+try { playerName = localStorage.getItem("scm-name") || ""; } catch (e) {}
+function setName(n) {
+  playerName = (n || "").trim().slice(0, 20);
+  try { localStorage.setItem("scm-name", playerName); } catch (e) {}
+}
+
 function shareMessage() {
-  const url = location.origin + location.pathname + "#" + mode + (timed ? "-czas" : "");
+  const payload = { s: seed, m: mode, t: timed ? 1 : 0, n: playerName, p: score };
+  const url = location.origin + location.pathname + "#w-" + b64e(JSON.stringify(payload));
   const fire = score >= (timed ? 20 : 15) ? "🏆" : score >= (timed ? 10 : 7) ? "🔥" : "🎵";
   return {
-    text: `🎵 Starsza czy młodsza? – kategoria ${MODES[mode].label}` + (timed ? ` · ⏱ na czas (${TIME_LIMIT} s)` : "") + `\n` +
-          (timed ? `Trafienia w minutę: ${score} ${fire}` : `Moja seria: ${score} ${fire}`) + (best > score ? ` (rekord: ${best})` : "") + `\n` +
-          `Dasz radę więcej? Zagraj tutaj:`,
+    text: `🎵 Starsza czy młodsza? – ${MODES[mode].label}` + (timed ? ` · ⏱ na czas (${TIME_LIMIT} s)` : "") + `\n` +
+          (playerName ? playerName + " – " : "") + (timed ? `trafienia w minutę: ${score}` : `seria: ${score}`) + ` ${fire}\n` +
+          `Zagraj na tych samych piosenkach i spróbuj mnie pobić:`,
     url,
   };
 }
 
-$("shareBtn").onclick = async () => {
+$("shareBtn").onclick = () => {
+  if (!playerName) {          // najpierw podpis wyzwania
+    $("nameRow").hidden = false;
+    $("nameInput").focus();
+    return;
+  }
+  doShare();
+};
+$("nameOk").onclick = () => { setName($("nameInput").value); $("nameRow").hidden = true; doShare(); };
+$("nameInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.stopPropagation(); $("nameOk").click(); } });
+
+async function doShare() {
   const { text, url } = shareMessage();
   const full = text + " " + url;
   const status = $("shareStatus");
@@ -1258,15 +1423,330 @@ $("shareBtn").onclick = async () => {
     ta.value = full; ta.hidden = false; ta.focus(); ta.select();
     status.textContent = "Zaznaczyłem tekst – skopiuj go (Ctrl+C) i wyślij znajomym.";
   }
-};
-$("menuBtn").onclick = () => { stopTimer(); $("timer").hidden = true; stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
+}
+$("menuBtn").onclick = () => { ctx = null; stopTimer(); $("timer").hidden = true; stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
 document.addEventListener("keydown", e => {
   if (e.target.matches && e.target.matches("input[type=range]")) return;
   if (e.key === "ArrowLeft") guess(true);
   if (e.key === "ArrowRight") guess(false);
   if (e.key === " " && e.target.tagName !== "BUTTON" && !document.querySelector(".overlay.show")) { e.preventDefault(); togglePlay(b); }
-  if (e.key === "Enter" && $("endOverlay").classList.contains("show")) startGame();
+  if (e.key === "Enter" && $("endOverlay").classList.contains("show")) $("againBtn").click();
 });
+
+/* ===================== Pojedynek na żywo (publiczny serwer MQTT, bez kont) ===================== */
+
+const MQTT_SRC = [
+  "https://cdn.jsdelivr.net/npm/mqtt@5.16.1/dist/mqtt.min.js",
+  "https://unpkg.com/mqtt@5.16.1/dist/mqtt.min.js",
+];
+const BROKERS = window.SCM_BROKERS || [
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://test.mosquitto.org:8081",
+];
+const ROOM_CHARS = "ABCDEFGHJKLMNPRSTUWXYZ";
+const TOPIC = code => "starsza-czy-mlodsza/v1/pokoj/" + code;
+const myId = Math.random().toString(36).slice(2, 10);
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+let live = null;
+
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function liveView(v) {
+  for (const id of ["lvMenu", "lvJoin", "lvConnecting", "lvLobby", "lvCountdown"]) $(id).hidden = id !== v;
+  document.querySelectorAll(".overlay").forEach(o => o.classList.toggle("show", o.id === "liveOverlay"));
+}
+
+// iPhone wymaga, żeby pierwsze odtworzenie było po kliknięciu – „odblokowujemy” odtwarzacz.
+function unlockAudio() {
+  try {
+    stopAudio();
+    audio.muted = true; audio.src = SILENT;
+    const p = audio.play();
+    const restore = () => { audio.pause(); audio.muted = muted; };
+    if (p && p.then) p.then(restore, restore); else restore();
+  } catch (e) {}
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = src; el.onload = resolve; el.onerror = reject;
+    document.head.appendChild(el);
+  });
+}
+async function ensureMqtt() {
+  if (window.mqtt) return;
+  for (const src of MQTT_SRC) { try { await loadScript(src); if (window.mqtt) return; } catch (e) {} }
+  throw new Error("Nie udało się wczytać biblioteki połączenia.");
+}
+
+function connectBroker(idx, code) {
+  return new Promise((resolve, reject) => {
+    const client = mqtt.connect(BROKERS[idx], {
+      clientId: "sczm_" + myId + "_" + Math.random().toString(36).slice(2, 6),
+      connectTimeout: 7000, reconnectPeriod: 2500, clean: true, keepalive: 30,
+      will: { topic: TOPIC(code), payload: JSON.stringify({ t: "bye", id: myId }), qos: 0, retain: false },
+    });
+    const fail = setTimeout(() => { client.end(true); reject(new Error("timeout")); }, 8000);
+    client.once("connect", () => { clearTimeout(fail); resolve(client); });
+    client.on("error", () => {});
+  });
+}
+
+async function openRoom(code, brokerIdx) {
+  liveView("lvConnecting");
+  $("lvConnMsg").textContent = `Łączę się z pokojem ${code}…`;
+  const attempt = Symbol();
+  openRoom.attempt = attempt;
+  try {
+    await ensureMqtt();
+    const order = brokerIdx === undefined ? BROKERS.map((_, i) => i) : [brokerIdx];
+    let client = null, idx = 0;
+    for (const i of order) {
+      try { client = await connectBroker(i, code); idx = i; break; } catch (e) {}
+      if (openRoom.attempt !== attempt) return;
+    }
+    if (openRoom.attempt !== attempt) { if (client) client.end(true); return; }
+    if (!client) throw new Error("Nie udało się połączyć z serwerem gry. Sprawdź internet i spróbuj ponownie.");
+    const joined = Date.now();
+    live = { code, idx, client, joined, round: 0, phase: "lobby", settings: { mode, timed }, players: new Map() };
+    live.players.set(myId, { id: myId, name: playerName, joined, score: 0, mistakes: 0, done: false, playing: false, round: 0, seen: Date.now() });
+    client.subscribe(TOPIC(code));
+    client.on("message", (_, buf) => { let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; } onLiveMessage(m); });
+    client.on("connect", () => { client.subscribe(TOPIC(code)); sendPing(); });   // po ponownym połączeniu
+    live.pinger = setInterval(() => { sendPing(); pruneOffline(); }, 3000);
+    sendPing();
+    history.replaceState(null, "", "#pokoj-" + code + "-" + idx);
+    $("lvLink").value = location.origin + location.pathname + "#pokoj-" + code + "-" + idx;
+    $("lvShareStatus").textContent = "";
+    liveView("lvLobby");
+    updateLive();
+  } catch (e) {
+    $("lvConnMsg").textContent = "❌ " + e.message;
+  }
+}
+
+function leaveRoom() {
+  openRoom.attempt = null;
+  if (live) {
+    try { pub({ t: "bye" }); live.client.end(); } catch (e) {}
+    clearInterval(live.pinger);
+  }
+  live = null;
+  if (ctx && ctx.kind === "live") ctx = null;
+  stopTimer(); stopAudio();
+  $("liveBoard").hidden = true; $("timer").hidden = true;
+  document.body.classList.remove("live-on");
+  history.replaceState(null, "", location.pathname);
+  showChallenge();
+  document.querySelectorAll(".overlay").forEach(o => o.classList.toggle("show", o.id === "startOverlay"));
+}
+window.addEventListener("pagehide", () => { if (live) try { pub({ t: "bye" }); } catch (e) {} });
+
+function pub(m) { if (live && live.client.connected) live.client.publish(TOPIC(live.code), JSON.stringify({ ...m, id: myId })); }
+const me = () => live.players.get(myId);
+const activePlayers = () => [...live.players.values()].filter(p => !p.offline);
+function hostId() {
+  let h = null;
+  for (const p of activePlayers()) if (!h || p.joined < h.joined || (p.joined === h.joined && p.id < h.id)) h = p;
+  return h && h.id;
+}
+const isHost = () => !!live && hostId() === myId;
+
+function sendPing() {
+  if (!live) return;
+  const p = me();
+  pub({ t: "ping", name: playerName, joined: live.joined, round: p.round, score: p.score, mistakes: p.mistakes,
+        done: p.done, playing: p.playing, ...(isHost() ? { settings: live.settings } : {}) });
+}
+
+function onLiveMessage(m) {
+  if (!live || !m || !m.id || m.id === myId) return;
+  if (m.t === "bye") { const p = live.players.get(m.id); if (p) p.offline = true; updateLive(); return; }
+  let p = live.players.get(m.id);
+  if (!p) { p = { id: m.id, joined: m.joined || Date.now(), score: 0, mistakes: 0, round: 0 }; live.players.set(m.id, p); }
+  const wasOffline = p.offline;
+  p.seen = Date.now(); p.offline = false;
+  if (typeof m.name === "string") p.name = m.name.slice(0, 20);
+  if (typeof m.joined === "number") p.joined = m.joined;
+  if (m.t === "ping" || m.t === "score") {
+    if (typeof m.round === "number") p.round = m.round;
+    if (typeof m.score === "number") p.score = m.score;
+    if (typeof m.mistakes === "number") p.mistakes = m.mistakes;
+    p.done = !!m.done; p.playing = !!m.playing;
+    if (m.settings && m.id === hostId() && MODES[m.settings.mode]) live.settings = { mode: m.settings.mode, timed: !!m.settings.timed };
+  }
+  if (m.t === "start" && typeof m.round === "number" && m.round > live.round && MODES[m.mode]) beginRound(m);
+  if (wasOffline === undefined && m.t === "ping") sendPing();   // nowy gracz – przywitaj się od razu
+  updateLive();
+}
+
+function pruneOffline() {
+  if (!live) return;
+  const now = Date.now();
+  for (const p of live.players.values()) if (p.id !== myId && !p.offline && now - p.seen > 10000) p.offline = true;
+  updateLive();
+}
+
+function hostStart() {
+  if (!isHost()) return;
+  unlockAudio();
+  const m = { t: "start", round: live.round + 1, seed: (Math.random() * 2 ** 32) >>> 0, mode: live.settings.mode, timed: live.settings.timed };
+  pub(m);
+  beginRound(m);
+}
+
+function beginRound(m) {
+  live.round = m.round;
+  live.settings = { mode: m.mode, timed: !!m.timed };
+  Object.assign(me(), { round: m.round, score: 0, mistakes: 0, done: false, playing: true });
+  for (const p of live.players.values()) if (p.id !== myId && p.round !== m.round) Object.assign(p, { score: 0, mistakes: 0, done: false });
+  sendPing();
+  live.phase = "countdown";
+  stopAudio();
+  liveView("lvCountdown");
+  $("lvCdMode").textContent = MODES[m.mode].label + (m.timed ? " · ⏱ na czas" : " · ♾ do pierwszego błędu");
+  let n = 3;
+  $("liveCountdown").textContent = n;
+  clearInterval(live.cd);
+  live.cd = setInterval(() => {
+    if (!live) return;
+    if (--n > 0) { $("liveCountdown").textContent = n; return; }
+    clearInterval(live.cd);
+    live.phase = "playing";
+    $("liveOverlay").classList.remove("show");
+    mode = m.mode;
+    setGameType(!!m.timed);
+    ctx = { kind: "live" };
+    startGame({ seed: m.seed });
+    $("liveBoard").hidden = false;
+    document.body.classList.add("live-on");
+    updateLive();
+  }, 1000);
+}
+
+function liveScoreChanged() {
+  if (!live || !ctx || ctx.kind !== "live") return;
+  Object.assign(me(), { score, mistakes });
+  pub({ t: "score", name: playerName, joined: live.joined, round: live.round, score, mistakes, done: false, playing: true });
+  updateLive();
+}
+
+function liveGameOver() {
+  if (!live) return;
+  Object.assign(me(), { score, mistakes, done: true, playing: false });
+  pub({ t: "score", name: playerName, joined: live.joined, round: live.round, score, mistakes, done: true, playing: false });
+  live.phase = "results";
+  stopAudio();
+  $("liveBoard").hidden = true;
+  liveView("lvLobby");
+  document.body.classList.remove("live-on");
+  updateLive();
+}
+
+function ranking() {
+  return activePlayers()
+    .filter(p => p.round === live.round)
+    .sort((x, y) => (y.score - x.score) || (x.mistakes - y.mistakes) || (x.joined - y.joined));
+}
+
+function updateLive() {
+  if (!live) return;
+  const hid = hostId(), host = live.players.get(hid), amHost = hid === myId;
+  const inRound = live.round > 0;
+  const stillPlaying = activePlayers().filter(p => p.round === live.round && p.playing && !p.done && inRound);
+  const S = live.settings;
+
+  // Poczekalnia / wyniki
+  $("lvTitle").textContent = live.phase === "results" ? `🏁 Runda ${live.round} – wyniki` : `👥 Pokój ${live.code}`;
+  $("lvHostCtl").hidden = !amHost;
+  document.querySelectorAll("#lvType button").forEach(b => b.classList.toggle("on", (b.dataset.type === "timed") === S.timed));
+  $("lvMode").value = S.mode;
+  $("lvSettings").textContent = `Kategoria: ${MODES[S.mode].label} · ${S.timed ? "⏱ na czas (60 s)" : "♾ do pierwszego błędu"}`;
+  const list = inRound
+    ? [...ranking(), ...activePlayers().filter(p => p.round !== live.round)]
+    : activePlayers().sort((x, y) => x.joined - y.joined);
+  const lead = inRound && !stillPlaying.length && list.length ? list[0] : null;
+  $("lvPlayers").innerHTML = list.map((p, i) => {
+    const inThis = inRound && p.round === live.round;
+    const st = !inThis ? (inRound ? "dołączył(a)" : "") : p.done ? (lead && p === lead ? "🏆" : "✔ koniec") : p.playing ? "🎮 gra…" : "";
+    return `<li class="${p.id === myId ? "me" : ""}"><span class="nm">${inThis ? (i + 1) + ". " : ""}${esc(p.name || "Gracz")}` +
+      `${p.id === hid ? " 👑" : ""}${p.id === myId ? " (Ty)" : ""}</span>` +
+      `${inThis ? `<span class="sc">${p.score}</span>` : ""}<span class="st">${st}</span></li>`;
+  }).join("");
+  let wait = "";
+  if (stillPlaying.length) wait = "Czekamy, aż skończą: " + stillPlaying.map(p => p.name || "Gracz").join(", ");
+  else if (lead && list.length > 1) wait = `🏆 Wygrywa ${lead.name || "Gracz"} (${lead.score})!`;
+  else if (!amHost) wait = `Czekamy, aż ${host ? host.name || "gospodarz" : "gospodarz"} 👑 rozpocznie ${inRound ? "kolejną rundę" : "grę"}…`;
+  else if (list.length < 2) wait = "Wyślij znajomym link – możesz też zacząć sam(a).";
+  $("lvWait").textContent = wait;
+  $("lvStart").hidden = !amHost;
+  $("lvStart").disabled = stillPlaying.length > 0;
+  $("lvStart").textContent = inRound ? "▶ Nowa runda" : "▶ Start";
+
+  // Tablica podczas gry
+  if (!$("liveBoard").hidden) {
+    $("liveBoard").innerHTML = `<h3>Pokój ${esc(live.code)} · na żywo</h3><ol>` + ranking().map(p =>
+      `<li class="${p.id === myId ? "me" : ""}"><span class="nm">${esc(p.name || "Gracz")}</span>` +
+      `<span class="st">${p.done ? (S.timed ? "✔" : "✗ odpadł(a)") : ""}</span><span class="sc">${p.score}</span></li>`).join("") + "</ol>";
+  }
+}
+
+// Ustawienia gospodarza
+$("lvMode").innerHTML = Object.keys(MODES).filter(k => MODES[k].songs.length >= 10)
+  .map(k => `<option value="${k}">${MODES[k].label} (${MODES[k].songs.length} piosenek)</option>`).join("");
+$("lvMode").onchange = () => { if (!live) return; live.settings.mode = $("lvMode").value; sendPing(); updateLive(); };
+document.querySelectorAll("#lvType button").forEach(b => b.onclick = () => {
+  if (!live) return; live.settings.timed = b.dataset.type === "timed"; sendPing(); updateLive();
+});
+
+// Przyciski
+function needName(input) {
+  const n = input.value.trim();
+  if (!n) { input.focus(); input.placeholder = "Wpisz imię, żeby inni wiedzieli, kim jesteś"; return false; }
+  setName(n); return true;
+}
+$("friendsBtn").onclick = () => { $("lvName1").value = playerName; liveView("lvMenu"); };
+$("lvBack").onclick = leaveRoom;
+$("lvCreate").onclick = () => {
+  if (!needName($("lvName1"))) return;
+  unlockAudio();
+  let code = ""; for (let i = 0; i < 4; i++) code += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
+  live && leaveRoom();
+  openRoom(code);
+};
+$("lvJoinCode").onclick = () => {
+  if (!needName($("lvName1"))) return;
+  const code = $("lvCode").value.trim().toUpperCase();
+  if (!/^[A-Z]{4}$/.test(code)) { $("lvCode").focus(); return; }
+  unlockAudio();
+  openRoom(code, 0);
+};
+$("lvCode").addEventListener("keydown", e => { if (e.key === "Enter") { e.stopPropagation(); $("lvJoinCode").click(); } });
+$("lvJoinBtn").onclick = () => {
+  if (!needName($("lvName2"))) return;
+  unlockAudio();
+  openRoom($("lvJoinBtn").dataset.code, +$("lvJoinBtn").dataset.broker || 0);
+};
+$("lvJoinCancel").onclick = $("lvConnCancel").onclick = $("lvLeave").onclick = leaveRoom;
+$("lvStart").onclick = hostStart;
+$("lvShare").onclick = async () => {
+  const url = $("lvLink").value, text = `🎵 Zagraj ze mną na żywo w „Starsza czy młodsza?” – pokój ${live ? live.code : ""}:`;
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title: "Starsza czy młodsza?", text, url }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(text + " " + url); $("lvShareStatus").textContent = "✔ Skopiowano link – wyślij go znajomym."; }
+  catch (e) { $("lvLink").select(); $("lvShareStatus").textContent = "Skopiuj link z pola powyżej."; }
+};
+
+function showJoin(code, broker) {
+  $("lvJoinLabel").textContent = code;
+  $("lvJoinBtn").dataset.code = code;
+  $("lvJoinBtn").dataset.broker = broker;
+  $("lvName2").value = playerName;
+  liveView("lvJoin");
+}
 
 /* ===================== Diagnostyka (#diagnostyka-rap itd.) ===================== */
 
@@ -1328,18 +1808,38 @@ async function runDiagnostics(modeKey) {
 }
 
 function showChallenge() {
-  const raw = location.hash.slice(1), isTimed = raw.endsWith("-czas"), key = raw.replace(/-czas$/, "");
-  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("picked", b.dataset.mode === key));
-  if (MODES[key] && MODES[key].songs.length >= 10) {
-    if (isTimed) setGameType(true); else if (raw) setGameType(false);
-    $("challenge").textContent = `🏆 Ktoś rzuca Ci wyzwanie w kategorii ${MODES[key].label}` + (isTimed ? " na czas ⏱" : "") + "! Kliknij ją poniżej.";
-    $("challenge").hidden = false;
-  } else $("challenge").hidden = true;
+  const raw = location.hash.slice(1);
+  let text = "", challenge = null, key = raw.replace(/-czas$/, "");
+  if (raw.startsWith("w-")) {
+    challenge = parseChallenge(raw.slice(2));
+    if (challenge) {
+      key = challenge.m;
+      setGameType(!!challenge.t);
+      const who = challenge.n || "Znajomy";
+      text = `🏆 ${who} rzuca Ci wyzwanie: ${challenge.t ? `${challenge.p} trafień w minutę` : `seria ${challenge.p}`} · ${MODES[challenge.m].label}` +
+             (challenge.t ? " · ⏱ na czas" : "") + ". Zagrasz na dokładnie tych samych piosenkach!";
+    }
+  } else if (MODES[key] && MODES[key].songs.length >= 10) {
+    if (raw.endsWith("-czas")) setGameType(true); else setGameType(false);
+    text = `🏆 Ktoś rzuca Ci wyzwanie w kategorii ${MODES[key].label}` + (raw.endsWith("-czas") ? " na czas ⏱" : "") + "! Kliknij ją poniżej.";
+  }
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("picked", !challenge && text && b.dataset.mode === key));
+  $("challenge").hidden = !text;
+  $("challengeText").textContent = text;
+  $("challengeGo").hidden = !challenge;
+  $("challengeGo").onclick = () => {
+    mode = challenge.m;
+    setGameType(!!challenge.t);
+    ctx = { kind: "challenge", from: challenge.n || "Znajomy", score: challenge.p, seed: challenge.s };
+    startGame({ seed: challenge.s });
+  };
 }
 
 function checkHash() {
   const m = location.hash.match(/^#diagnostyka(?:-(\w+))?$/);
+  const room = location.hash.match(/^#pokoj-([A-Z]{4})(?:-(\d))?$/i);
   if (m) { stopTimer(); stopAudio(); runDiagnostics(MODES[m[1]] ? m[1] : "rap"); }
+  else if (room) { if (!live || live.code !== room[1].toUpperCase()) showJoin(room[1].toUpperCase(), Math.min(+room[2] || 0, BROKERS.length - 1)); }
   else showChallenge();
 }
 window.addEventListener("hashchange", checkHash);
