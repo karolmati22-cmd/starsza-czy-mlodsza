@@ -194,6 +194,25 @@
   .diag li { margin-bottom: 4px; }
   .diag li small { color: var(--muted); }
   .diag .actions { text-align: center; }
+  .timer {
+    position: relative; font-weight: 800; font-size: 1.15rem; padding: 4px 14px; border-radius: 999px;
+    background: #2e2e42; font-variant-numeric: tabular-nums;
+  }
+  .timer.low { background: var(--bad); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.08); } }
+  .timer .penalty {
+    position: absolute; right: -6px; top: -14px; color: var(--bad); font-size: 0.9rem;
+    opacity: 0; pointer-events: none;
+  }
+  .timer .penalty.show { animation: penalty 1s ease-out; }
+  @keyframes penalty { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-18px); } }
+  .seg { display: flex; background: #2e2e42; border-radius: 999px; padding: 4px; gap: 4px; margin-top: 6px; }
+  .seg button {
+    flex: 1; font: inherit; font-weight: 700; font-size: 0.92rem; padding: 9px 8px; border: none;
+    border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .seg button.on { background: #fff; color: #111; }
+  .seg-hint { font-size: 0.85rem; margin: 6px 0 0 !important; }
   .share-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .share-row .btn { margin-top: 12px; }
   .share-status { min-height: 1.4em; margin-top: 10px; color: var(--ok) !important; font-weight: 600; }
@@ -236,6 +255,7 @@
       <span class="pct" id="volPct">80%</span>
     </div>
     <label class="toggle"><input type="checkbox" id="autoplay" checked> Autoodtwarzanie</label>
+    <div class="timer" id="timer" hidden>⏱ <b id="timeLeft">1:00</b><span class="penalty" id="penalty">−5 s</span></div>
     <div class="scores">
       <div>Wynik:<b id="score">0</b></div>
       <div>Rekord:<b id="best">0</b></div>
@@ -284,10 +304,16 @@
       <li>Po lewej widzisz piosenkę razem z rokiem wydania.</li>
       <li>Zdecyduj, czy piosenka po prawej jest <b>starsza</b> (wydana wcześniej) czy <b>młodsza</b> (wydana później).</li>
       <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
-      <li>Jedna pomyłka kończy grę. Jak długą serię zrobisz?</li>
+      <li>Grasz do pierwszego błędu albo na czas: 60 sekund na jak najwięcej trafień.</li>
     </ul>
     <p class="challenge" id="challenge" hidden></p>
-    <p style="margin-top:12px">Wybierz kategorię:</p>
+    <p style="margin-top:12px">Tryb gry:</p>
+    <div class="seg" id="gameType">
+      <button data-type="classic" class="on">♾ Do pierwszego błędu</button>
+      <button data-type="timed">⏱ Na czas · 60 s</button>
+    </div>
+    <p class="seg-hint" id="typeHint">Jedna pomyłka kończy grę.</p>
+    <p style="margin-top:6px">Wybierz kategorię:</p>
     <div class="modes">
       <button class="btn" data-mode="rap">🎤 Rap<small>polski hip-hop</small></button>
       <button class="btn" data-mode="pop">🔥 Popularne<small>hity od 2000 roku</small></button>
@@ -701,11 +727,51 @@ document.querySelectorAll("[data-mode]").forEach(btn => {
 const $ = id => document.getElementById(id);
 let pool = [], deck = [], a = null, b = null, score = 0, best = 0, locked = false, mode = "pl";
 
+/* ---- Tryb gry: klasyczny albo na czas ---- */
+const TIME_LIMIT = 60, PENALTY = 5;
+let timed = false, endsAt = 0, timerId = null, mistakes = 0;
+try { timed = localStorage.getItem("scm-timed") === "1"; } catch (e) {}
+
+function setGameType(t) {
+  timed = t;
+  document.querySelectorAll("#gameType button").forEach(b => b.classList.toggle("on", (b.dataset.type === "timed") === timed));
+  $("typeHint").textContent = timed
+    ? `Masz ${TIME_LIMIT} sekund – traf jak najwięcej. Pomyłka zabiera ${PENALTY} s.`
+    : "Jedna pomyłka kończy grę.";
+  try { localStorage.setItem("scm-timed", timed ? "1" : "0"); } catch (e) {}
+}
+document.querySelectorAll("#gameType button").forEach(b => b.onclick = () => setGameType(b.dataset.type === "timed"));
+setGameType(timed);
+
+const bestKey = () => "scm-best-" + mode + (timed ? "-czas" : "");
 function loadBest() {
-  try { best = parseInt(localStorage.getItem("scm-best-" + mode) || "0", 10) || 0; } catch (e) { best = 0; }
+  try { best = parseInt(localStorage.getItem(bestKey()) || "0", 10) || 0; } catch (e) { best = 0; }
   $("best").textContent = best;
 }
-function saveBest() { try { localStorage.setItem("scm-best-" + mode, best); } catch (e) {} }
+function saveBest() { try { localStorage.setItem(bestKey(), best); } catch (e) {} }
+
+function fmtTime(sec) { sec = Math.max(0, Math.ceil(sec)); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); }
+function tick() {
+  const left = (endsAt - Date.now()) / 1000;
+  $("timeLeft").textContent = fmtTime(left);
+  $("timer").classList.toggle("low", left <= 10);
+  if (left <= 0) timeUp();
+}
+function startTimer() {
+  stopTimer();
+  endsAt = Date.now() + TIME_LIMIT * 1000;
+  $("timer").hidden = false;
+  tick();
+  timerId = setInterval(tick, 200);
+}
+function stopTimer() { clearInterval(timerId); timerId = null; }
+function timeUp() {
+  stopTimer();
+  locked = true;
+  $("btnOlder").disabled = $("btnYounger").disabled = true;
+  stopAudio();
+  setTimeout(gameOver, 400);
+}
 
 try { $("autoplay").checked = localStorage.getItem("scm-autoplay") !== "0"; } catch (e) {}
 $("autoplay").onchange = () => { try { localStorage.setItem("scm-autoplay", $("autoplay").checked ? "1" : "0"); } catch (e) {} };
@@ -1058,7 +1124,7 @@ function render() {
 
 function countUp(el, target, done) {
   const start = target - 40 + Math.floor(Math.random() * 10);
-  const steps = 22;
+  const steps = timed ? 10 : 22;
   let i = 0;
   el.hidden = false;
   const t = setInterval(() => {
@@ -1078,19 +1144,32 @@ function guess(older) {
   $("bLabel").textContent = "została wydana w roku";
 
   countUp($("bYear"), b.year, () => {
+    if (timed && !timerId) return;          // czas minął w trakcie odsłaniania
     const vs = $("vs");
+    const next = delay => setTimeout(() => {
+      if (timed && !timerId) return;
+      a = b;
+      b = nextSong(a);
+      render();
+      locked = false;
+      if ($("autoplay").checked) togglePlay(b);
+    }, delay);
     if (correct) {
       vs.className = "vs ok"; vs.textContent = "✓";
       score++;
       $("score").textContent = score;
       if (score > best) { best = score; $("best").textContent = best; saveBest(); }
-      setTimeout(() => {
-        a = b;
-        b = nextSong(a);
-        render();
-        locked = false;
-        if ($("autoplay").checked) togglePlay(b);
-      }, 1100);
+      next(timed ? 450 : 1100);
+    } else if (timed) {
+      // Na czas: pomyłka zabiera sekundy, gra toczy się dalej
+      vs.className = "vs bad"; vs.textContent = "✗";
+      mistakes++;
+      endsAt -= PENALTY * 1000;
+      const pen = $("penalty"); pen.classList.remove("show"); void pen.offsetWidth; pen.classList.add("show");
+      $("cardB").classList.add("shake");
+      setTimeout(() => $("cardB").classList.remove("shake"), 400);
+      tick();
+      if (timerId) next(700);
     } else {
       vs.className = "vs bad"; vs.textContent = "✗";
       $("cardB").classList.add("shake");
@@ -1100,11 +1179,14 @@ function guess(older) {
 }
 
 function gameOver() {
+  stopTimer();
   const diff = Math.abs(a.year - b.year);
-  $("endMsg").textContent =
-    `„${b.title}” (${b.year}) jest ${b.year < a.year ? "starsza" : "młodsza"} od „${a.title}” (${a.year}) o ${diff} ${yearsWord(diff)}.`;
+  $("endMsg").textContent = timed
+    ? `⏱ Czas minął! Trafienia: ${score} · pomyłki: ${mistakes}`
+    : `„${b.title}” (${b.year}) jest ${b.year < a.year ? "starsza" : "młodsza"} od „${a.title}” (${a.year}) o ${diff} ${yearsWord(diff)}.`;
   $("endScore").textContent = score;
-  $("endTitle").textContent = score >= 15 ? "🏆 Mistrz muzyki!" : score >= 7 ? "🔥 Świetny wynik!" : "Koniec gry!";
+  const great = timed ? 20 : 15, good = timed ? 10 : 7;
+  $("endTitle").textContent = score >= great ? "🏆 Mistrz muzyki!" : score >= good ? "🔥 Świetny wynik!" : timed ? "Czas minął!" : "Koniec gry!";
   $("endBest").textContent = score === best && score > 0 ? "Nowy rekord! 🎉" : `Twój rekord: ${best}`;
   $("shareStatus").textContent = "";
   $("shareText").hidden = true;
@@ -1122,7 +1204,10 @@ function startGame() {
   $("modeChip").textContent = MODES[mode].label;
   $("modeChip").hidden = false;
   loadBest();
-  score = 0;
+  score = 0; mistakes = 0;
+  stopTimer();
+  $("timer").hidden = !timed;
+  $("timer").classList.remove("low");
   deck = shuffle([...pool]);
   a = deck.pop();
   b = nextSong(a);
@@ -1133,6 +1218,7 @@ function startGame() {
   const run = prefetchIds(pool).catch(() => {}).finally(() => { if (prefetching === run) prefetching = null; });
   prefetching = run;
   render();
+  if (timed) startTimer();
   if ($("autoplay").checked) togglePlay(b);
 }
 
@@ -1144,11 +1230,11 @@ $("againBtn").onclick = startGame;
 /* ===================== Udostępnianie wyniku ===================== */
 
 function shareMessage() {
-  const url = location.origin + location.pathname + "#" + mode;
-  const fire = score >= 15 ? "🏆" : score >= 7 ? "🔥" : "🎵";
+  const url = location.origin + location.pathname + "#" + mode + (timed ? "-czas" : "");
+  const fire = score >= (timed ? 20 : 15) ? "🏆" : score >= (timed ? 10 : 7) ? "🔥" : "🎵";
   return {
-    text: `🎵 Starsza czy młodsza? – kategoria ${MODES[mode].label}\n` +
-          `Moja seria: ${score} ${fire}` + (best > score ? ` (rekord: ${best})` : "") + `\n` +
+    text: `🎵 Starsza czy młodsza? – kategoria ${MODES[mode].label}` + (timed ? ` · ⏱ na czas (${TIME_LIMIT} s)` : "") + `\n` +
+          (timed ? `Trafienia w minutę: ${score} ${fire}` : `Moja seria: ${score} ${fire}`) + (best > score ? ` (rekord: ${best})` : "") + `\n` +
           `Dasz radę więcej? Zagraj tutaj:`,
     url,
   };
@@ -1173,7 +1259,7 @@ $("shareBtn").onclick = async () => {
     status.textContent = "Zaznaczyłem tekst – skopiuj go (Ctrl+C) i wyślij znajomym.";
   }
 };
-$("menuBtn").onclick = () => { stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
+$("menuBtn").onclick = () => { stopTimer(); $("timer").hidden = true; stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
 document.addEventListener("keydown", e => {
   if (e.target.matches && e.target.matches("input[type=range]")) return;
   if (e.key === "ArrowLeft") guess(true);
@@ -1242,17 +1328,18 @@ async function runDiagnostics(modeKey) {
 }
 
 function showChallenge() {
-  const key = location.hash.slice(1);
+  const raw = location.hash.slice(1), isTimed = raw.endsWith("-czas"), key = raw.replace(/-czas$/, "");
   document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("picked", b.dataset.mode === key));
   if (MODES[key] && MODES[key].songs.length >= 10) {
-    $("challenge").textContent = `🏆 Ktoś rzuca Ci wyzwanie w kategorii ${MODES[key].label}! Kliknij ją poniżej.`;
+    if (isTimed) setGameType(true); else if (raw) setGameType(false);
+    $("challenge").textContent = `🏆 Ktoś rzuca Ci wyzwanie w kategorii ${MODES[key].label}` + (isTimed ? " na czas ⏱" : "") + "! Kliknij ją poniżej.";
     $("challenge").hidden = false;
   } else $("challenge").hidden = true;
 }
 
 function checkHash() {
   const m = location.hash.match(/^#diagnostyka(?:-(\w+))?$/);
-  if (m) { stopAudio(); runDiagnostics(MODES[m[1]] ? m[1] : "rap"); }
+  if (m) { stopTimer(); stopAudio(); runDiagnostics(MODES[m[1]] ? m[1] : "rap"); }
   else showChallenge();
 }
 window.addEventListener("hashchange", checkHash);
