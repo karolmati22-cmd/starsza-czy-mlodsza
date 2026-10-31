@@ -568,11 +568,13 @@ let apiBlocked = false, playingSong = null, cbCounter = 0;
 const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
   .replace(/ł/g, "l").replace(/&/g, " ").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 
-let queryGap = 0, lastQuery = 0;
+// Apple pozwala na ok. 20 zapytań na minutę, więc zapytania idą w kolejce z odstępem.
+let queryGap = 700, nextSlot = 0, throttledUntil = 0;
 async function jsonp(url) {
-  const wait = lastQuery + queryGap - Date.now();
-  if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  lastQuery = Date.now();
+  if (Date.now() < throttledUntil) throw new Error("throttled");
+  const slot = Math.max(Date.now(), nextSlot);
+  nextSlot = slot + queryGap;
+  if (slot > Date.now()) await new Promise(r => setTimeout(r, slot - Date.now()));
   return new Promise((resolve, reject) => {
     const cb = "itcb" + (++cbCounter);
     const script = document.createElement("script");
@@ -620,7 +622,6 @@ async function findPreview(s) {
     [artist + " " + title, "PL", 25],
     [title, "PL", 50],
     [artist, "PL", 200],
-    [artist + " " + title, "US", 25],
   ];
   let transient = false;
   // Najpierw dokładny utwór / album po identyfikatorze Apple
@@ -634,6 +635,7 @@ async function findPreview(s) {
       if (r) return { url: r.previewUrl, track: r, query: "id " + (s.id || s.albumId) + " [" + country + "]" };
     } catch (e) {
       if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return null; }
+      if (e.message === "blocked") throttledUntil = Date.now() + 30000;
       transient = true; break;
     }
   }
@@ -646,20 +648,41 @@ async function findPreview(s) {
       if (r) return { url: r.previewUrl, track: r, query: term + " [" + country + "]" };
     } catch (e) {
       if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return null; }
-      transient = true;   // np. chwilowy limit zapytań Apple – spróbujemy później
-      break;
+      if (e.message === "blocked") throttledUntil = Date.now() + 30000;   // chwilowy limit Apple
+      transient = true; break;
     }
   }
   if (transient) throw new Error("transient");
   return null;
 }
 
+// Znalezione fragmenty zapamiętujemy w przeglądarce (7 dni), żeby nie pytać Apple ponownie.
+const RETRY = "retry";
+const cacheKey = s => "scm-prev:" + s.artist + "|" + s.title;
+function cachedUrl(s) {
+  try {
+    const c = JSON.parse(localStorage.getItem(cacheKey(s)) || "null");
+    if (c && c.url && Date.now() - c.t < 7 * 864e5) return c.url;
+  } catch (e) {}
+  return null;
+}
+
+// Zwraca adres fragmentu, null (Apple nie ma piosenki) albo RETRY (chwilowy problem – można spróbować ponownie).
 function getPreview(s) {
   if (!previews.has(s)) {
-    const p = findPreview(s).then(res => res && res.url, () => { previews.delete(s); return null; });
+    const hit = cachedUrl(s);
+    const p = hit ? Promise.resolve(hit) : findPreview(s).then(res => {
+      if (res) try { localStorage.setItem(cacheKey(s), JSON.stringify({ url: res.url, t: Date.now() })); } catch (e) {}
+      return res && res.url;
+    }, () => { previews.delete(s); return RETRY; });
     previews.set(s, p);
   }
   return previews.get(s);
+}
+
+function showMissing(side, url) {
+  if (url === RETRY) setPlayerUI(side, "idle", "Apple chwilowo ogranicza zapytania – kliknij płytę za kilkanaście sekund");
+  else setPlayerUI(side, "none", apiBlocked ? "odsłuch niedostępny w tym podglądzie" : "brak fragmentu dla tej piosenki");
 }
 
 function showBlockedNotice() {
@@ -702,7 +725,7 @@ async function togglePlay(s) {
   setPlayerUI(side, "loading", "ładowanie fragmentu…");
   const url = await getPreview(s);
   if (cardOf(s) !== side) return;           // karta zdążyła się zmienić
-  if (!url) { setPlayerUI(side, "none", apiBlocked ? "odsłuch niedostępny w tym podglądzie" : "brak fragmentu dla tej piosenki"); return; }
+  if (!url || url === RETRY) { showMissing(side, url); return; }
   playingSong = s;
   audio.src = url;
   audio.currentTime = 0;
@@ -725,7 +748,7 @@ async function prepPlayer(side, s) {
   setPlayerUI(side, "idle", "kliknij płytę, żeby posłuchać");
   const url = await getPreview(s);
   if (cardOf(s) !== side || playingSong === s) return;
-  if (!url) setPlayerUI(side, "none", apiBlocked ? "odsłuch niedostępny w tym podglądzie" : "brak fragmentu dla tej piosenki");
+  if (!url || url === RETRY) showMissing(side, url);
 }
 
 $("aPlay").onclick = () => togglePlay(a);
@@ -888,7 +911,14 @@ async function runDiagnostics(modeKey) {
     ol.appendChild(li);
     li.scrollIntoView({ block: "nearest" });
     let res = null, err = false;
-    try { res = await findPreview(song); } catch (e) { err = true; }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { res = await findPreview(song); err = false; break; }
+      catch (e) {
+        err = true;
+        li.textContent = `⏸ ${song.title} – limit zapytań Apple, czekam ~30 s…`;
+        await new Promise(r => setTimeout(r, Math.max(throttledUntil - Date.now(), 5000) + 1000));
+      }
+    }
     done++;
     let line;
     if (res) {
