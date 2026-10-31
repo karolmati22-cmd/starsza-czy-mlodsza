@@ -194,6 +194,18 @@
   .diag li { margin-bottom: 4px; }
   .diag li small { color: var(--muted); }
   .diag .actions { text-align: center; }
+  .share-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .share-row .btn { margin-top: 12px; }
+  .share-status { min-height: 1.4em; margin-top: 10px; color: var(--ok) !important; font-weight: 600; }
+  #shareText {
+    width: 100%; margin-top: 12px; padding: 10px; border-radius: 10px; border: 1px solid #3a3a50;
+    background: #12121c; color: var(--text); font: inherit; font-size: 0.9rem; resize: none; height: 96px;
+  }
+  .challenge {
+    margin-top: 12px; padding: 10px 14px; border-radius: 12px;
+    background: #2a2414; color: #fde68a !important; font-weight: 600;
+  }
+  .modes .btn.picked { outline: 3px solid #fff; outline-offset: 2px; }
   .rules { text-align: left; margin: 12px 0 4px; padding-left: 20px; color: var(--muted); line-height: 1.6; }
 
   .slide-in { animation: slideIn 0.45s ease-out; }
@@ -274,6 +286,7 @@
       <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
       <li>Jedna pomyłka kończy grę. Jak długą serię zrobisz?</li>
     </ul>
+    <p class="challenge" id="challenge" hidden></p>
     <p style="margin-top:12px">Wybierz kategorię:</p>
     <div class="modes">
       <button class="btn" data-mode="rap">🎤 Rap<small>polski hip-hop</small></button>
@@ -292,7 +305,12 @@
     <div class="big" id="endScore">0</div>
     <p id="endBest"></p>
     <button class="btn" id="againBtn">Zagraj jeszcze raz</button>
-    <br><button class="btn secondary" id="menuBtn">Zmień tryb</button>
+    <div class="share-row">
+      <button class="btn secondary" id="shareBtn">📤 Udostępnij wynik</button>
+      <button class="btn secondary" id="menuBtn">Zmień tryb</button>
+    </div>
+    <textarea id="shareText" readonly hidden></textarea>
+    <p id="shareStatus" class="share-status"></p>
   </div>
 </div>
 
@@ -1088,6 +1106,8 @@ function gameOver() {
   $("endScore").textContent = score;
   $("endTitle").textContent = score >= 15 ? "🏆 Mistrz muzyki!" : score >= 7 ? "🔥 Świetny wynik!" : "Koniec gry!";
   $("endBest").textContent = score === best && score > 0 ? "Nowy rekord! 🎉" : `Twój rekord: ${best}`;
+  $("shareStatus").textContent = "";
+  $("shareText").hidden = true;
   $("endOverlay").classList.add("show");
 }
 
@@ -1120,6 +1140,39 @@ document.querySelectorAll("[data-mode]").forEach(btn => btn.onclick = () => { mo
 $("btnOlder").onclick = () => guess(true);
 $("btnYounger").onclick = () => guess(false);
 $("againBtn").onclick = startGame;
+
+/* ===================== Udostępnianie wyniku ===================== */
+
+function shareMessage() {
+  const url = location.origin + location.pathname + "#" + mode;
+  const fire = score >= 15 ? "🏆" : score >= 7 ? "🔥" : "🎵";
+  return {
+    text: `🎵 Starsza czy młodsza? – kategoria ${MODES[mode].label}\n` +
+          `Moja seria: ${score} ${fire}` + (best > score ? ` (rekord: ${best})` : "") + `\n` +
+          `Dasz radę więcej? Zagraj tutaj:`,
+    url,
+  };
+}
+
+$("shareBtn").onclick = async () => {
+  const { text, url } = shareMessage();
+  const full = text + " " + url;
+  const status = $("shareStatus");
+  status.textContent = "";
+  // Telefon: systemowe okno udostępniania (Messenger, WhatsApp itd.)
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title: "Starsza czy młodsza?", text, url }); return; }
+    catch (e) { if (e.name === "AbortError") return; }
+  }
+  try {
+    await navigator.clipboard.writeText(full);
+    status.textContent = "✔ Skopiowano! Wklej znajomym na czacie.";
+  } catch (e) {
+    const ta = $("shareText");
+    ta.value = full; ta.hidden = false; ta.focus(); ta.select();
+    status.textContent = "Zaznaczyłem tekst – skopiuj go (Ctrl+C) i wyślij znajomym.";
+  }
+};
 $("menuBtn").onclick = () => { stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
 document.addEventListener("keydown", e => {
   if (e.target.matches && e.target.matches("input[type=range]")) return;
@@ -1188,9 +1241,19 @@ async function runDiagnostics(modeKey) {
   };
 }
 
+function showChallenge() {
+  const key = location.hash.slice(1);
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("picked", b.dataset.mode === key));
+  if (MODES[key] && MODES[key].songs.length >= 10) {
+    $("challenge").textContent = `🏆 Ktoś rzuca Ci wyzwanie w kategorii ${MODES[key].label}! Kliknij ją poniżej.`;
+    $("challenge").hidden = false;
+  } else $("challenge").hidden = true;
+}
+
 function checkHash() {
   const m = location.hash.match(/^#diagnostyka(?:-(\w+))?$/);
   if (m) { stopAudio(); runDiagnostics(MODES[m[1]] ? m[1] : "rap"); }
+  else showChallenge();
 }
 window.addEventListener("hashchange", checkHash);
 
