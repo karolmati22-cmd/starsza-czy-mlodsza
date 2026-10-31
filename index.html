@@ -185,6 +185,15 @@
     display: inline-block; margin-left: 10px; padding: 3px 10px; border-radius: 999px;
     background: #2e2e42; color: var(--muted); font-size: 0.78rem; font-weight: 600; vertical-align: middle;
   }
+  .diag { max-width: 900px; text-align: left; }
+  .diag h2 { text-align: center; }
+  .diag .tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 10px 0; }
+  .diag .tabs a { color: var(--text); background: #2e2e42; padding: 6px 12px; border-radius: 999px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+  .diag .tabs a.on { background: var(--accent); color: #111; }
+  .diag ol { font-size: 0.85rem; line-height: 1.5; padding-left: 26px; max-height: 60vh; overflow-y: auto; margin-top: 10px; }
+  .diag li { margin-bottom: 4px; }
+  .diag li small { color: var(--muted); }
+  .diag .actions { text-align: center; }
   .rules { text-align: left; margin: 12px 0 4px; padding-left: 20px; color: var(--muted); line-height: 1.6; }
 
   .slide-in { animation: slideIn 0.45s ease-out; }
@@ -287,8 +296,21 @@
   </div>
 </div>
 
+<div class="overlay" id="diagOverlay">
+  <div class="dialog diag">
+    <h2>🔧 Diagnostyka fragmentów</h2>
+    <p id="diagInfo">Sprawdzam po kolei, czy Apple Music ma fragment każdej piosenki…</p>
+    <div class="tabs" id="diagTabs"></div>
+    <ol id="diagList"></ol>
+    <div class="actions">
+      <button class="btn" id="diagCopy">📋 Kopiuj wyniki</button>
+      <a class="btn secondary" href="./" style="display:inline-block;text-decoration:none">Wróć do gry</a>
+    </div>
+  </div>
+</div>
+
 <script>
-// [tytuł, wykonawca, rok pierwszego wydania]
+// [tytuł, wykonawca, rok pierwszego wydania, (opcjonalnie) album – podpowiedź dla wyszukiwarki]
 const SONGS_PL = [
   ["Miłość ci wszystko wybaczy", "Hanka Ordonówna", 1933],
   ["To ostatnia niedziela", "Mieczysław Fogg", 1935],
@@ -452,7 +474,7 @@ const SONGS_WORLD = [
   ["Espresso", "Sabrina Carpenter", 2024],
 ];
 
-const toObj = ([title, artist, year]) => ({ title, artist, year });
+const toObj = ([title, artist, year, album]) => ({ title, artist, year, album });
 const ALL_PL = SONGS_PL.map(toObj);
 const ALL_RAP = SONGS_RAP.map(toObj);
 const ALL_WORLD = SONGS_WORLD.map(toObj);
@@ -530,7 +552,11 @@ let apiBlocked = false, playingSong = null, cbCounter = 0;
 const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
   .replace(/ł/g, "l").replace(/&/g, " ").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 
-function jsonp(url) {
+let queryGap = 0, lastQuery = 0;
+async function jsonp(url) {
+  const wait = lastQuery + queryGap - Date.now();
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastQuery = Date.now();
   return new Promise((resolve, reject) => {
     const cb = "itcb" + (++cbCounter);
     const script = document.createElement("script");
@@ -543,36 +569,63 @@ function jsonp(url) {
   });
 }
 
+const splitArtists = s => s.artist.split(/\s*(?:,|&|\bfeat\.?\s|\bft\.?\s|\si\s|\sx\s)\s*/i).map(x => x.trim()).filter(Boolean);
+const cleanTitle = s => s.title.replace(/\(.*?\)/g, "").trim();
+const BAD_VERSION = /\b(karaoke|cover|tribute|instrumental|instrumentalna|remix|rmx|live|acoustic|akustycznie|unplugged|wersja|version|mix|bootleg|sped|slowed|reverb)\b/;
+
+// Ocena wyniku z Apple: tytuł + wykonawca muszą się zgadzać, wersje typu remix/live/cover odpadają.
 function pickBest(results, s) {
-  const t = norm(s.title.replace(/\(.*?\)/g, "")), firstArtist = norm(s.artist).split(" ")[0];
-  let bestR = null, bestScore = 0;
+  const t = norm(cleanTitle(s));
+  const keys = splitArtists(s).map(norm).filter(k => k.length >= 2);
+  let best = null, bestScore = 0;
   for (const r of results) {
     if (!r.previewUrl) continue;
-    const rt = norm(r.trackName || ""), ra = norm(r.artistName || "");
+    const rt = norm((r.trackName || "").replace(/\(.*?\)|\[.*?\]/g, "")), rtFull = norm(r.trackName || "");
+    const ra = norm(r.artistName || ""), rc = norm(r.collectionName || "");
     let sc = 0;
-    if (rt === t) sc += 3; else if (t.length >= 3 && (rt.startsWith(t) || rt.includes(t))) sc += 2; else continue;
-    if (ra.includes(firstArtist)) sc += 3;
-    if (/karaoke|cover|tribute|instrumental/.test(rt + " " + ra)) sc -= 4;
-    if (sc > bestScore) { bestScore = sc; bestR = r; }
+    if (rt === t || rtFull === t) sc += 3;
+    else if (t.length >= 3 && (rt.startsWith(t) || rtFull.includes(t))) sc += 2;
+    else continue;
+    if (keys.some(k => ra.includes(k))) sc += 3;
+    if (BAD_VERSION.test(rtFull + " " + ra) && !BAD_VERSION.test(norm(s.title))) sc -= 4;
+    if (/karaoke|tribute|hits of|cover/.test(rc)) sc -= 4;
+    if (s.album && rc.includes(norm(s.album))) sc += 2;
+    if (sc > bestScore) { bestScore = sc; best = r; }
   }
-  return bestScore >= 4 ? bestR.previewUrl : null;
+  return bestScore >= 5 ? best : null;
+}
+
+let apiWorked = false;
+
+// Szuka fragmentu kilkoma sposobami; zwraca { url, track, query } albo null.
+async function findPreview(s) {
+  const artist = splitArtists(s)[0] || s.artist, title = cleanTitle(s);
+  const tries = [
+    [artist + " " + title, "PL", 25],
+    [title, "PL", 50],
+    [artist, "PL", 200],
+    [artist + " " + title, "US", 25],
+  ];
+  let transient = false;
+  for (const [term, country, limit] of tries) {
+    try {
+      const data = await jsonp(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&country=${country}&media=music&entity=song&limit=${limit}`);
+      apiWorked = true;
+      const r = pickBest(data.results || [], s);
+      if (r) return { url: r.previewUrl, track: r, query: term + " [" + country + "]" };
+    } catch (e) {
+      if (e.message === "blocked" && !apiWorked) { apiBlocked = true; showBlockedNotice(); return null; }
+      transient = true;   // np. chwilowy limit zapytań Apple – spróbujemy później
+      break;
+    }
+  }
+  if (transient) throw new Error("transient");
+  return null;
 }
 
 function getPreview(s) {
   if (!previews.has(s)) {
-    const term = encodeURIComponent(s.artist + " " + s.title.replace(/\(.*?\)/g, ""));
-    const p = (async () => {
-      for (const country of ["PL", "US"]) {
-        try {
-          const data = await jsonp(`https://itunes.apple.com/search?term=${term}&country=${country}&media=music&entity=song&limit=15`);
-          const url = pickBest(data.results || [], s);
-          if (url) return url;
-        } catch (e) {
-          if (e.message === "blocked") { apiBlocked = true; showBlockedNotice(); return null; }
-        }
-      }
-      return null;
-    })();
+    const p = findPreview(s).then(res => res && res.url, () => { previews.delete(s); return null; });
     previews.set(s, p);
   }
   return previews.get(s);
@@ -786,12 +839,60 @@ document.addEventListener("keydown", e => {
   if (e.key === "Enter" && $("endOverlay").classList.contains("show")) startGame();
 });
 
+/* ===================== Diagnostyka (#diagnostyka-rap itd.) ===================== */
+
+async function runDiagnostics(modeKey) {
+  $("startOverlay").classList.remove("show");
+  $("diagOverlay").classList.add("show");
+  $("diagTabs").innerHTML = Object.keys(MODES).map(k =>
+    `<a href="#diagnostyka-${k}" class="${k === modeKey ? "on" : ""}">${MODES[k].label}</a>`).join("");
+  const list = MODES[modeKey].songs, ol = $("diagList"), lines = [];
+  ol.innerHTML = "";
+  queryGap = 3200;   // Apple pozwala na ok. 20 zapytań na minutę
+  let ok = 0, done = 0;
+  for (const song of list) {
+    if (location.hash !== "#diagnostyka-" + modeKey) return;
+    const li = document.createElement("li");
+    li.textContent = `⏳ ${song.title} – ${song.artist} (${song.year})`;
+    ol.appendChild(li);
+    li.scrollIntoView({ block: "nearest" });
+    let res = null, err = false;
+    try { res = await findPreview(song); } catch (e) { err = true; }
+    done++;
+    let line;
+    if (res) {
+      ok++;
+      const t = res.track;
+      line = `✅ ${song.title} – ${song.artist} (${song.year}) → „${t.trackName}” / ${t.artistName} / album: ${t.collectionName}`;
+    } else if (err) {
+      line = `⚠️ ${song.title} – ${song.artist} (${song.year}) → błąd połączenia / limit zapytań`;
+    } else {
+      line = `❌ ${song.title} – ${song.artist} (${song.year}) → nie znaleziono`;
+    }
+    li.textContent = line;
+    lines.push(line);
+    $("diagInfo").textContent = `Sprawdzono ${done}/${list.length} · znaleziono ${ok}` + (done < list.length ? " · trwa (ok. 3 s na zapytanie)…" : " · gotowe ✔");
+  }
+  $("diagCopy").onclick = async () => {
+    const text = `Diagnostyka ${MODES[modeKey].label}: ${ok}/${list.length}\n` + lines.join("\n");
+    try { await navigator.clipboard.writeText(text); $("diagCopy").textContent = "✔ Skopiowano"; }
+    catch (e) { $("diagCopy").textContent = "Nie udało się skopiować – zaznacz listę ręcznie"; }
+  };
+}
+
+function checkHash() {
+  const m = location.hash.match(/^#diagnostyka(?:-(\w+))?$/);
+  if (m) { stopAudio(); runDiagnostics(MODES[m[1]] ? m[1] : "rap"); }
+}
+window.addEventListener("hashchange", checkHash);
+
 // Pierwsze ułożenie w tle za ekranem startowym (bez szukania fragmentów)
 pool = ALL_PL; loadBest();
 deck = shuffle([...pool]); a = deck.pop(); b = nextSong(a);
 paint($("cardA"), a); paint($("cardB"), b);
 $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.artist; $("aYear").textContent = a.year;
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
+checkHash();
 </script>
 </body>
 </html>
