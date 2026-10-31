@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starsza czy młodsza?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f17;
+    --text: #f5f5fa;
+    --muted: #a3a3b8;
+    --ok: #22c55e;
+    --bad: #ef4444;
+    --accent: #facc15;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    gap: 12px 20px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .hright { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .scores { display: flex; gap: 20px; font-weight: 600; color: var(--muted); }
+  .scores b { color: var(--text); font-size: 1.15rem; margin-left: 4px; }
+  .toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: 0.9rem; color: var(--muted); font-weight: 600; user-select: none;
+  }
+  .toggle input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+  .notice {
+    background: #2a2414; color: #fde68a; font-size: 0.88rem; line-height: 1.45;
+    padding: 10px 24px; text-align: center;
+  }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+  }
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    gap: 14px;
+    min-height: 440px;
+    transition: background 0.5s;
+  }
+
+  /* Płyta = przycisk odtwarzania */
+  .vinyl {
+    position: relative;
+    width: 128px; height: 128px; border-radius: 50%;
+    border: none; cursor: pointer; padding: 0;
+    background:
+      radial-gradient(circle, var(--label, #facc15) 0 18%, #111 19% 21%, transparent 22%),
+      repeating-radial-gradient(circle, #1b1b1b 0 2px, #0a0a0a 2px 4px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    margin-bottom: 6px;
+    transition: transform 0.15s;
+  }
+  .vinyl:hover:not(:disabled) { transform: scale(1.05); }
+  .vinyl:disabled { cursor: default; }
+  .vinyl.playing { animation: spin 2.4s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .vinyl .icon {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: #111; pointer-events: none;
+  }
+  .vinyl.playing .icon { animation: spin 2.4s linear infinite reverse; }
+  .ring {
+    position: absolute; inset: -7px; pointer-events: none;
+    transform: rotate(-90deg);
+  }
+  .vinyl.playing .ring { animation: spin 2.4s linear infinite reverse; }
+  .ring circle { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
+  .player-status { font-size: 0.82rem; color: rgba(255,255,255,0.7); min-height: 1.2em; margin-top: -6px; }
+
+  .title { font-size: clamp(1.5rem, 3vw, 2.4rem); font-weight: 800; line-height: 1.1; max-width: 520px; }
+  .artist { font-size: 1.1rem; color: rgba(255,255,255,0.82); font-weight: 600; }
+  .label { font-size: 0.95rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+  .year {
+    font-size: clamp(3rem, 7vw, 5rem);
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.03em;
+    line-height: 1;
+    min-height: 1em;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .buttons { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; width: 100%; max-width: 260px; }
+  .buttons button {
+    font: inherit; font-weight: 800; font-size: 1.1rem;
+    padding: 14px 20px; border-radius: 999px;
+    border: 2px solid #fff; background: transparent; color: #fff;
+    cursor: pointer; transition: transform 0.12s, background 0.15s, color 0.15s;
+  }
+  @media (hover: hover) { .buttons button:hover { background: #fff; color: #111; transform: scale(1.04); } }
+  .buttons button:active { transform: scale(0.97); }
+  .buttons button:disabled { opacity: 0.4; cursor: default; transform: none; background: transparent; color: #fff; }
+
+  .vs {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 76px; height: 76px; border-radius: 50%;
+    background: #fff; color: #111;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.4rem;
+    box-shadow: 0 0 0 8px rgba(255,255,255,0.15);
+    z-index: 5; transition: background 0.25s, color 0.25s;
+  }
+  .vs.ok { background: var(--ok); color: #fff; }
+  .vs.bad { background: var(--bad); color: #fff; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(5,5,10,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 20; padding: 20px; overflow-y: auto;
+  }
+  .overlay.show { display: flex; animation: fade 0.3s; }
+  @keyframes fade { from { opacity: 0; } }
+  .dialog {
+    background: #1b1b28; border-radius: 20px; padding: 32px 28px;
+    max-width: 460px; width: 100%; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    margin: auto;
+  }
+  .dialog h2 { font-size: 1.8rem; margin-bottom: 10px; }
+  .dialog p { color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+  .dialog .big { font-size: 3.5rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
+  .dialog .btn {
+    font: inherit; font-weight: 800; font-size: 1.05rem;
+    margin-top: 16px; padding: 14px 28px; border-radius: 999px; border: none;
+    background: var(--accent); color: #111; cursor: pointer;
+  }
+  .dialog .btn:hover { filter: brightness(1.08); }
+  .dialog .btn.secondary { background: #2e2e42; color: var(--text); }
+  .modes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .modes .btn { flex: 1; min-width: 170px; }
+  .modes small { display: block; font-weight: 600; font-size: 0.78rem; opacity: 0.75; margin-top: 2px; }
+  .rules { text-align: left; margin: 12px 0 4px; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+
+  .slide-in { animation: slideIn 0.45s ease-out; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } }
+  .shake { animation: shake 0.4s; }
+  @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+  @media (max-width: 760px) {
+    header { padding: 12px 16px; }
+    main { grid-template-columns: 1fr; }
+    .card { min-height: 0; padding: 26px 16px; gap: 9px; }
+    .vinyl { width: 84px; height: 84px; }
+    .vs { width: 56px; height: 56px; font-size: 1.1rem; }
+    .buttons { flex-direction: row; max-width: 360px; }
+    .buttons button { flex: 1; font-size: 1rem; padding: 12px 10px; }
+    .slide-in { animation-name: slideUp; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎵 Starsza czy <span>młodsza?</span></h1>
+  <div class="hright">
+    <label class="toggle"><input type="checkbox" id="autoplay" checked> Autoodtwarzanie</label>
+    <div class="scores">
+      <div>Wynik:<b id="score">0</b></div>
+      <div>Rekord:<b id="best">0</b></div>
+    </div>
+  </div>
+</header>
+<div class="notice" id="notice" hidden></div>
+
+<main>
+  <section class="card" id="cardA">
+    <button class="vinyl" id="aPlay" aria-label="Odtwórz fragment">
+      <svg class="ring" viewBox="0 0 142 142"><circle cx="71" cy="71" r="68"/></svg>
+      <span class="icon">▶&#xFE0E;</span>
+    </button>
+    <div class="player-status" id="aStatus"></div>
+    <div class="title" id="aTitle"></div>
+    <div class="artist" id="aArtist"></div>
+    <div class="label">została wydana w roku</div>
+    <div class="year" id="aYear"></div>
+  </section>
+
+  <div class="vs" id="vs">VS</div>
+
+  <section class="card" id="cardB">
+    <button class="vinyl" id="bPlay" aria-label="Odtwórz fragment">
+      <svg class="ring" viewBox="0 0 142 142"><circle cx="71" cy="71" r="68"/></svg>
+      <span class="icon">▶&#xFE0E;</span>
+    </button>
+    <div class="player-status" id="bStatus"></div>
+    <div class="title" id="bTitle"></div>
+    <div class="artist" id="bArtist"></div>
+    <div class="label" id="bLabel">jest…</div>
+    <div class="buttons" id="buttons">
+      <button id="btnOlder">⏪ Starsza</button>
+      <button id="btnYounger">Młodsza ⏩</button>
+    </div>
+    <div class="year" id="bYear" hidden></div>
+  </section>
+</main>
+
+<div class="overlay show" id="startOverlay">
+  <div class="dialog">
+    <h2>🎶 Starsza czy młodsza?</h2>
+    <p>Zgadnij, która piosenka powstała wcześniej.</p>
+    <ul class="rules">
+      <li>Po lewej widzisz piosenkę razem z rokiem wydania.</li>
+      <li>Zdecyduj, czy piosenka po prawej jest <b>starsza</b> (wydana wcześniej) czy <b>młodsza</b> (wydana później).</li>
+      <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
+      <li>Jedna pomyłka kończy grę. Jak długą serię zrobisz?</li>
+    </ul>
+    <div class="modes">
+      <button class="btn" data-mode="pl">🇵🇱 Polskie hity<small>tylko polskie piosenki</small></button>
+      <button class="btn secondary" data-mode="mix">🌍 Mix<small>polskie + kilka zagranicznych</small></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endOverlay">
+  <div class="dialog">
+    <h2 id="endTitle">Koniec gry!</h2>
+    <p id="endMsg"></p>
+    <div class="big" id="endScore">0</div>
+    <p id="endBest"></p>
+    <button class="btn" id="againBtn">Zagraj jeszcze raz</button>
+    <br><button class="btn secondary" id="menuBtn">Zmień tryb</button>
+  </div>
+</div>
+
+<script>
+// [tytuł, wykonawca, rok pierwszego wydania]
+const SONGS_PL = [
+  ["Miłość ci wszystko wybaczy", "Hanka Ordonówna", 1933],
+  ["To ostatnia niedziela", "Mieczysław Fogg", 1935],
+  ["Umówiłem się z nią na dziewiątą", "Eugeniusz Bodo", 1937],
+  ["Tańczące Eurydyki", "Anna German", 1964],
+  ["Nie zadzieraj nosa", "Czerwone Gitary", 1966],
+  ["Sen o Warszawie", "Czesław Niemen", 1966],
+  ["Dziwny jest ten świat", "Czesław Niemen", 1967],
+  ["Takie ładne oczy", "Czerwone Gitary", 1968],
+  ["Wszystko mi mówi, że mnie ktoś pokochał", "Skaldowie", 1968],
+  ["Medytacje wiejskiego listonosza", "Skaldowie", 1969],
+  ["Gdybyś kochał, hej!", "Breakout", 1969],
+  ["Kiedy byłem małym chłopcem", "Breakout", 1971],
+  ["Dni, których nie znamy", "Marek Grechuta", 1971],
+  ["Ocalić od zapomnienia", "Marek Grechuta", 1971],
+  ["Zegarmistrz światła", "Tadeusz Woźniak", 1972],
+  ["Małgośka", "Maryla Rodowicz", 1973],
+  ["Tyle słońca w całym mieście", "Anna Jantar", 1974],
+  ["Parostatek", "Krzysztof Krawczyk", 1976],
+  ["Zacznij od Bacha", "Zbigniew Wodecki", 1976],
+  ["Kolorowe jarmarki", "Maryla Rodowicz", 1977],
+  ["Windą do nieba", "2 plus 1", 1977],
+  ["Nic nie może wiecznie trwać", "Anna Jantar", 1979],
+  ["Wszystko czego dziś chcę", "Izabela Trojanowska", 1980],
+  ["Boskie Buenos", "Maanam", 1980],
+  ["Nie płacz Ewka", "Perfect", 1981],
+  ["Cykady na Cykladach", "Maanam", 1981],
+  ["Jolka, Jolka pamiętasz", "Budka Suflera", 1982],
+  ["Józek, nie daruję ci tej nocy", "Bajm", 1982],
+  ["Autobiografia", "Perfect", 1982],
+  ["Mniej niż zero", "Lady Pank", 1983],
+  ["Kryzysowa narzeczona", "Lady Pank", 1983],
+  ["Szklana pogoda", "Lombard", 1983],
+  ["Kocham cię, kochanie moje", "Maanam", 1983],
+  ["Dmuchawce, latawce, wiatr", "Urszula", 1983],
+  ["Co mi Panie dasz", "Bajm", 1983],
+  ["Niech żyje bal", "Maryla Rodowicz", 1984],
+  ["Malinowy król", "Urszula", 1984],
+  ["Słodkiego, miłego życia", "Kombi", 1984],
+  ["Chałupy Welcome To", "Zbigniew Wodecki", 1985],
+  ["Polska", "Kult", 1987],
+  ["Arahja", "Kult", 1988],
+  ["Wehikuł czasu", "Dżem", 1989],
+  ["Kocham wolność", "Chłopcy z Placu Broni", 1989],
+  ["Zawsze tam, gdzie ty", "Lady Pank", 1990],
+  ["Berlin Zachodni", "Big Cyc", 1990],
+  ["Warszawa", "T.Love", 1990],
+  ["List do M.", "Dżem", 1991],
+  ["Son of the Blue Sky", "Wilki", 1992],
+  ["Teksański", "Hey", 1993],
+  ["To nie ja!", "Edyta Górniak", 1994],
+  ["Dziewczyna Szamana", "Justyna Steczkowska", 1995],
+  ["Orła cień", "Varius Manx", 1996],
+  ["Kiedy powiem sobie dość", "O.N.A.", 1996],
+  ["Co ty tutaj robisz", "Elektryczne Gitary", 1997],
+  ["12 groszy", "Kazik", 1997],
+  ["Takie tango", "Budka Suflera", 1997],
+  ["Mamona", "Republika", 1998],
+  ["Prawy do lewego", "Kayah & Goran Bregović", 1999],
+  ["Długość dźwięku samotności", "Myslovitz", 1999],
+  ["Bal wszystkich świętych", "Budka Suflera", 2000],
+  ["Ściernisko", "Golec uOrkiestra", 2000],
+  ["Czerwone korale", "Brathanki", 2000],
+  ["Zawsze z tobą chciałbym być", "Ich Troje", 2001],
+  ["Baśka", "Wilki", 2002],
+  ["Chciałbym umrzeć z miłości", "Myslovitz", 2002],
+  ["Dżaga", "Virgin", 2004],
+  ["Tego chciałam", "Ania Dąbrowska", 2004],
+  ["A gdy jest już ciemno", "Feel", 2007],
+  ["Nowe szanse", "Liber & Sylwia Grzeszczak", 2008],
+  ["Chodź, przytul, przebacz", "Andrzej Piaseczny", 2009],
+  ["Granda", "Brodka", 2010],
+  ["Małe rzeczy", "Sylwia Grzeszczak", 2011],
+  ["Ona tańczy dla mnie", "Weekend", 2012],
+  ["Skrzydlate ręce", "Enej", 2012],
+  ["Cisza", "Kamil Bednarek", 2012],
+  ["My Słowianie", "Donatan & Cleo", 2013],
+  ["Thank You Very Much", "Margaret", 2013],
+  ["Trójkąty i kwadraty", "Dawid Podsiadło", 2013],
+  ["Naucz mnie", "Sarsa", 2015],
+  ["Zostań", "Kortez", 2015],
+  ["Color of Your Life", "Michał Szpak", 2016],
+  ["Miłość, miłość", "Krzysztof Zalewski", 2016],
+  ["Małomiasteczkowy", "Dawid Podsiadło", 2018],
+  ["Nie ma fal", "Dawid Podsiadło", 2018],
+  ["Dziś późno pójdę spać", "Kwiat Jabłoni", 2018],
+  ["Anyone I Want to Be", "Roksana Węgiel", 2018],
+  ["Superhero", "Viki Gabor", 2019],
+  ["Szampan", "sanah", 2020],
+  ["Ale jazz!", "sanah & Vito Bambino", 2021],
+  ["Ostatnia nadzieja", "sanah & Dawid Podsiadło", 2022],
+  ["River", "Ochman", 2022],
+  ["Solo", "Blanka", 2022],
+  ["Dom nad wodą", "Pezet & Auer", 2022],
+  ["The Tower", "Luna", 2024],
+  ["Gaja", "Justyna Steczkowska", 2024],
+  ["Woda księżycowa", "Kubi Producent, bambi, Fukaj, stickxr", 2024],
+  ["Och i ach", "Sylwia Grzeszczak", 2024]
+];
+
+const SONGS_WORLD = [
+  ["Jailhouse Rock", "Elvis Presley", 1957],
+  ["Stand by Me", "Ben E. King", 1961],
+  ["Yesterday", "The Beatles", 1965],
+  ["What a Wonderful World", "Louis Armstrong", 1967],
+  ["Hey Jude", "The Beatles", 1968],
+  ["Imagine", "John Lennon", 1971],
+  ["Bohemian Rhapsody", "Queen", 1975],
+  ["Dancing Queen", "ABBA", 1976],
+  ["Stayin' Alive", "Bee Gees", 1977],
+  ["Another Brick in the Wall (Part 2)", "Pink Floyd", 1979],
+  ["Africa", "Toto", 1982],
+  ["Billie Jean", "Michael Jackson", 1983],
+  ["Livin' on a Prayer", "Bon Jovi", 1986],
+  ["Like a Prayer", "Madonna", 1989],
+  ["Smells Like Teen Spirit", "Nirvana", 1991],
+  ["Wonderwall", "Oasis", 1995],
+  ["Wannabe", "Spice Girls", 1996],
+  ["...Baby One More Time", "Britney Spears", 1998],
+  ["Crazy in Love", "Beyoncé", 2003],
+  ["Umbrella", "Rihanna", 2007],
+  ["Rolling in the Deep", "Adele", 2010],
+  ["Gangnam Style", "PSY", 2012],
+  ["Uptown Funk", "Mark Ronson", 2014],
+  ["Shape of You", "Ed Sheeran", 2017],
+  ["Blinding Lights", "The Weeknd", 2019],
+  ["Flowers", "Miley Cyrus", 2023],
+  ["Espresso", "Sabrina Carpenter", 2024],
+];
+
+const toObj = ([title, artist, year]) => ({ title, artist, year });
+const ALL_PL = SONGS_PL.map(toObj);
+const ALL_WORLD = SONGS_WORLD.map(toObj);
+[...ALL_PL, ...ALL_WORLD].forEach((s, i) => s.hue = (i * 137) % 360);
+
+const $ = id => document.getElementById(id);
+let pool = [], deck = [], a = null, b = null, score = 0, best = 0, locked = false, mode = "pl";
+
+function loadBest() {
+  try { best = parseInt(localStorage.getItem("scm-best-" + mode) || "0", 10) || 0; } catch (e) { best = 0; }
+  $("best").textContent = best;
+}
+function saveBest() { try { localStorage.setItem("scm-best-" + mode, best); } catch (e) {} }
+
+try { $("autoplay").checked = localStorage.getItem("scm-autoplay") !== "0"; } catch (e) {}
+$("autoplay").onchange = () => { try { localStorage.setItem("scm-autoplay", $("autoplay").checked ? "1" : "0"); } catch (e) {} };
+
+/* ===================== Odtwarzacz fragmentów (iTunes Search API) ===================== */
+
+const audio = new Audio();
+audio.preload = "auto";
+const previews = new Map();   // piosenka -> Promise<url|null>
+let apiBlocked = false, playingSong = null, cbCounter = 0;
+
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/ł/g, "l").replace(/&/g, " ").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = "itcb" + (++cbCounter);
+    const script = document.createElement("script");
+    const timer = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, 9000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; script.remove(); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error("blocked")); };
+    script.src = url + "&callback=" + cb;
+    document.head.appendChild(script);
+  });
+}
+
+function pickBest(results, s) {
+  const t = norm(s.title.replace(/\(.*?\)/g, "")), firstArtist = norm(s.artist).split(" ")[0];
+  let bestR = null, bestScore = 0;
+  for (const r of results) {
+    if (!r.previewUrl) continue;
+    const rt = norm(r.trackName || ""), ra = norm(r.artistName || "");
+    let sc = 0;
+    if (rt === t) sc += 3; else if (rt.startsWith(t) || rt.includes(t)) sc += 2; else continue;
+    if (ra.includes(firstArtist)) sc += 3;
+    if (/karaoke|cover|tribute|instrumental/.test(rt + " " + ra)) sc -= 4;
+    if (sc > bestScore) { bestScore = sc; bestR = r; }
+  }
+  return bestScore >= 4 ? bestR.previewUrl : null;
+}
+
+function getPreview(s) {
+  if (!previews.has(s)) {
+    const term = encodeURIComponent(s.artist + " " + s.title.replace(/\(.*?\)/g, ""));
+    const p = (async () => {
+      for (const country of ["PL", "US"]) {
+        try {
+          const data = await jsonp(`https://itunes.apple.com/search?term=${term}&country=${country}&media=music&entity=song&limit=15`);
+          const url = pickBest(data.results || [], s);
+          if (url) return url;
+        } catch (e) {
+          if (e.message === "blocked") { apiBlocked = true; showBlockedNotice(); return null; }
+        }
+      }
+      return null;
+    })();
+    previews.set(s, p);
+  }
+  return previews.get(s);
+}
+
+function showBlockedNotice() {
+  const n = $("notice");
+  if (!n.hidden) return;
+  n.textContent = "🔇 Odsłuch fragmentów nie działa w tym podglądzie (np. na claude.ai blokowane są zewnętrzne pliki audio). " +
+    "Otwórz grę jako zwykłą stronę albo pobrany plik HTML w przeglądarce, a muzyka zadziała.";
+  n.hidden = false;
+}
+
+const cardOf = s => s === a ? "a" : s === b ? "b" : null;
+const RING = 2 * Math.PI * 68;
+
+function setPlayerUI(side, state, text) {
+  const btn = $(side + "Play");
+  btn.classList.toggle("playing", state === "playing");
+  btn.querySelector(".icon").textContent = state === "playing" ? "❚❚" : state === "loading" ? "…" : state === "none" ? "✕" : "▶\uFE0E";
+  btn.disabled = state === "none";
+  $(side + "Status").textContent = text || "";
+  if (state !== "playing") setRing(side, 0);
+}
+function setRing(side, frac) {
+  const c = $(side + "Play").querySelector("circle");
+  c.style.strokeDasharray = RING;
+  c.style.strokeDashoffset = RING * (1 - frac);
+}
+
+function stopAudio() {
+  audio.pause();
+  const side = cardOf(playingSong);
+  playingSong = null;
+  if (side) setPlayerUI(side, "idle", "kliknij płytę, żeby posłuchać");
+}
+
+async function togglePlay(s) {
+  if (!s) return;
+  if (playingSong === s && !audio.paused) { stopAudio(); return; }
+  stopAudio();
+  const side = cardOf(s);
+  setPlayerUI(side, "loading", "ładowanie fragmentu…");
+  const url = await getPreview(s);
+  if (cardOf(s) !== side) return;           // karta zdążyła się zmienić
+  if (!url) { setPlayerUI(side, "none", apiBlocked ? "odsłuch niedostępny w tym podglądzie" : "brak fragmentu dla tej piosenki"); return; }
+  playingSong = s;
+  audio.src = url;
+  audio.currentTime = 0;
+  try {
+    await audio.play();
+    if (playingSong === s) setPlayerUI(side, "playing", "gra fragment 🎧");
+  } catch (e) {
+    playingSong = null;
+    setPlayerUI(side, "idle", "kliknij płytę, żeby posłuchać");
+  }
+}
+
+audio.addEventListener("timeupdate", () => {
+  const side = cardOf(playingSong);
+  if (side && audio.duration) setRing(side, audio.currentTime / audio.duration);
+});
+audio.addEventListener("ended", stopAudio);
+
+async function prepPlayer(side, s) {
+  setPlayerUI(side, "idle", "kliknij płytę, żeby posłuchać");
+  const url = await getPreview(s);
+  if (cardOf(s) !== side || playingSong === s) return;
+  if (!url) setPlayerUI(side, "none", apiBlocked ? "odsłuch niedostępny w tym podglądzie" : "brak fragmentu dla tej piosenki");
+}
+
+$("aPlay").onclick = () => togglePlay(a);
+$("bPlay").onclick = () => togglePlay(b);
+
+/* ===================== Gra ===================== */
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Następna piosenka z talii, z innym rokiem niż obecna (żeby nie było remisów).
+function nextSong(other) {
+  if (deck.length === 0) deck = shuffle(pool.filter(s => s !== a && s !== b));
+  const idx = deck.findIndex(s => s.year !== other.year);
+  if (idx === -1) { deck = []; return nextSong(other); }
+  return deck.splice(idx, 1)[0];
+}
+
+function paint(card, s) {
+  card.style.background = `linear-gradient(160deg, hsl(${s.hue} 55% 32%), hsl(${(s.hue + 40) % 360} 60% 14%))`;
+  card.style.setProperty("--label", `hsl(${s.hue} 80% 60%)`);
+}
+
+function render() {
+  paint($("cardA"), a);
+  $("aTitle").textContent = "„" + a.title + "”";
+  $("aArtist").textContent = a.artist;
+  $("aYear").textContent = a.year;
+
+  paint($("cardB"), b);
+  $("bTitle").textContent = "„" + b.title + "”";
+  $("bArtist").textContent = b.artist;
+  $("bLabel").textContent = "jest…";
+  $("bYear").hidden = true;
+  $("buttons").hidden = false;
+  $("btnOlder").disabled = $("btnYounger").disabled = false;
+  $("vs").className = "vs";
+  $("vs").textContent = "VS";
+  $("score").textContent = score;
+
+  // Jeśli gra piosenka, która właśnie przeszła na lewo, zostaw ją grającą.
+  const keep = playingSong === a && !audio.paused;
+  if (!keep) stopAudio();
+  if (keep) setPlayerUI("a", "playing", "gra fragment 🎧"); else prepPlayer("a", a);
+  prepPlayer("b", b);
+
+  $("cardB").classList.remove("slide-in");
+  void $("cardB").offsetWidth;
+  $("cardB").classList.add("slide-in");
+}
+
+function countUp(el, target, done) {
+  const start = target - 40 + Math.floor(Math.random() * 10);
+  const steps = 22;
+  let i = 0;
+  el.hidden = false;
+  const t = setInterval(() => {
+    i++;
+    el.textContent = i >= steps ? target : Math.round(start + (target - start) * (i / steps));
+    if (i >= steps) { clearInterval(t); done(); }
+  }, 35);
+}
+
+function guess(older) {
+  if (locked || document.querySelector(".overlay.show")) return;
+  locked = true;
+  $("btnOlder").disabled = $("btnYounger").disabled = true;
+  const correct = older ? b.year < a.year : b.year > a.year;
+
+  $("buttons").hidden = true;
+  $("bLabel").textContent = "została wydana w roku";
+
+  countUp($("bYear"), b.year, () => {
+    const vs = $("vs");
+    if (correct) {
+      vs.className = "vs ok"; vs.textContent = "✓";
+      score++;
+      $("score").textContent = score;
+      if (score > best) { best = score; $("best").textContent = best; saveBest(); }
+      setTimeout(() => {
+        a = b;
+        b = nextSong(a);
+        render();
+        locked = false;
+        if ($("autoplay").checked) togglePlay(b);
+      }, 1100);
+    } else {
+      vs.className = "vs bad"; vs.textContent = "✗";
+      $("cardB").classList.add("shake");
+      setTimeout(() => { $("cardB").classList.remove("shake"); gameOver(); }, 1300);
+    }
+  });
+}
+
+function gameOver() {
+  const diff = Math.abs(a.year - b.year);
+  $("endMsg").textContent =
+    `„${b.title}” (${b.year}) jest ${b.year < a.year ? "starsza" : "młodsza"} od „${a.title}” (${a.year}) o ${diff} ${yearsWord(diff)}.`;
+  $("endScore").textContent = score;
+  $("endTitle").textContent = score >= 15 ? "🏆 Mistrz muzyki!" : score >= 7 ? "🔥 Świetny wynik!" : "Koniec gry!";
+  $("endBest").textContent = score === best && score > 0 ? "Nowy rekord! 🎉" : `Twój rekord: ${best}`;
+  $("endOverlay").classList.add("show");
+}
+
+function yearsWord(n) {
+  if (n === 1) return "rok";
+  const l = n % 10, t = n % 100;
+  return (l >= 2 && l <= 4 && (t < 12 || t > 14)) ? "lata" : "lat";
+}
+
+function startGame() {
+  pool = mode === "pl" ? ALL_PL : [...ALL_PL, ...ALL_WORLD];
+  loadBest();
+  score = 0;
+  deck = shuffle([...pool]);
+  a = deck.pop();
+  b = nextSong(a);
+  locked = false;
+  $("startOverlay").classList.remove("show");
+  $("endOverlay").classList.remove("show");
+  render();
+  if ($("autoplay").checked) togglePlay(b);
+}
+
+document.querySelectorAll("[data-mode]").forEach(btn => btn.onclick = () => { mode = btn.dataset.mode; startGame(); });
+$("btnOlder").onclick = () => guess(true);
+$("btnYounger").onclick = () => guess(false);
+$("againBtn").onclick = startGame;
+$("menuBtn").onclick = () => { stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") guess(true);
+  if (e.key === "ArrowRight") guess(false);
+  if (e.key === " " && !document.querySelector(".overlay.show")) { e.preventDefault(); togglePlay(b); }
+  if (e.key === "Enter" && $("endOverlay").classList.contains("show")) startGame();
+});
+
+// Pierwsze ułożenie w tle za ekranem startowym (bez szukania fragmentów)
+pool = ALL_PL; loadBest();
+deck = shuffle([...pool]); a = deck.pop(); b = nextSong(a);
+paint($("cardA"), a); paint($("cardB"), b);
+$("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.artist; $("aYear").textContent = a.year;
+$("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
+</script>
+</body>
+</html>
