@@ -396,6 +396,8 @@ function personInfo(name) {
   return v ? { vocal: v.split(" ")[0], band: v.includes("Z") } : null;
 }
 function songTraits(s) {
+  // opis wokalu zapisany przy samej piosence ma pierwszeństwo (składy z wieloma gośćmi)
+  if (s.vocal) return { female: s.vocal.includes("K"), male: s.vocal.includes("M"), band: !!s.band, multi: splitArtists(s).length > 1 };
   const people = artistsOf(s).map(personInfo);
   if (!people.length || people.some(p => !p)) return null;
   const voc = people.map(p => p.vocal).join("");
