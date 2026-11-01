@@ -166,3 +166,8 @@
 .det-ask .btn { padding: 9px 14px; font-size: 0.9rem; }
 .det-qhint { font-size: 0.78rem; color: var(--muted); margin: 4px 0 6px; }
 .det-log small { color: var(--muted); }
+
+/* --- linki do Apple Music przy odsłoniętych piosenkach --- */
+.cz-gsong .am-link { display: block; color: rgba(0, 0, 0, 0.7); border-bottom-color: rgba(0, 0, 0, 0.35); font-size: 0.72rem; width: max-content; margin-top: 2px; }
+.det-text .am-link, .det-mine .am-link { display: inline-block; font-size: 0.72rem; margin-top: 2px; }
+.kod-solution .am-link { font-size: 0.75rem; margin-left: 8px; }

@@ -81,6 +81,13 @@ async function playClip(song, btn) {
 }
 audio.addEventListener("ended", () => { if (Clip.song) { setClipBtn(Clip.btn, "idle"); Clip.song = Clip.btn = null; } });
 
+function amLink(song, label) {
+  const a = el("a", "am-link", label || "Apple Music ↗");
+  a.href = appleLink(song); a.target = "_blank"; a.rel = "noopener";
+  a.onclick = e => { e.stopPropagation(); a.href = appleLink(song); };
+  return a;
+}
+
 function clipButton(song) {
   const b = el("button", "clip");
   setClipBtn(b, "idle");
@@ -317,7 +324,9 @@ const Czworki = {
       for (const s of g.songs) {
         const item = el("span", "cz-gsong");
         item.appendChild(clipButton(s));
-        item.appendChild(el("span", "", `${esc(s.title)} <small>${esc(s.artist)} · ${s.year}</small>`));
+        const txt = el("span", "", `${esc(s.title)} <small>${esc(s.artist)} · ${s.year}</small>`);
+        txt.appendChild(amLink(s));
+        item.appendChild(txt);
         list.appendChild(item);
       }
       row.appendChild(list);
@@ -742,7 +751,9 @@ const Detektyw = {
     my.hidden = solo;
     if (!solo) {
       my.appendChild(clipButton(this.mySecret));
-      my.appendChild(el("div", "", `<small>Twoja ukryta piosenka (${esc(this.opp())} jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span>`));
+      const info = el("div", "", `<small>Twoja ukryta piosenka (${esc(this.opp())} jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span> `);
+      info.appendChild(amLink(this.mySecret));
+      my.appendChild(info);
     }
     $("detCpu").textContent = this.over ? "" : solo
       ? `❓ Pytania: ${this.questions} · zostało ${this.myLeft.size} z ${this.board.length} piosenek`
@@ -757,7 +768,9 @@ const Detektyw = {
       const reveal = this.over && s === oppSecret;
       const tile = el("div", "det-tile" + (out ? " out" : "") + (reveal ? " secret" : "") + (this.pending === s ? " sel" : ""));
       tile.appendChild(clipButton(s));
-      tile.appendChild(el("div", "det-text", this.hard && !this.over ? `🎧 ${i + 1}` : `<b>${esc(s.title)}</b><small>${esc(s.artist)}${this.over ? " · " + s.year : ""}</small>`));
+      const txt = el("div", "det-text", this.hard && !this.over ? `🎧 ${i + 1}` : `<b>${esc(s.title)}</b><small>${esc(s.artist)}${this.over ? " · " + s.year : ""}</small>`);
+      if (this.over) txt.appendChild(amLink(s));
+      tile.appendChild(txt);
       tile.onclick = () => { if (!out) this.guess(s); };
       grid.appendChild(tile);
     });
@@ -1073,6 +1086,7 @@ const Kod = {
       $("kodSolution").innerHTML = this.code.map(s => `<li>${clipHtmlPlaceholder()}<b>${esc(s.title)}</b> – ${esc(s.artist)} <span class="yr">${s.year}</span></li>`).join("");
       // przyciski odsłuchu przy rozwiązaniu
       $("kodSolution").querySelectorAll(".clip-ph").forEach((ph, i) => ph.replaceWith(clipButton(this.code[i])));
+      $("kodSolution").querySelectorAll("li").forEach((li, i) => li.appendChild(amLink(this.code[i])));
       this.won = won;
     }
   },

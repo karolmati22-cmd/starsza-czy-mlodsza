@@ -271,6 +271,10 @@
     background: #2a2414; color: #fde68a !important; font-weight: 600;
   }
   .modes .btn.picked { outline: 3px solid #fff; outline-offset: 2px; }
+  .am-link { font-size: 0.82rem; color: rgba(255,255,255,0.8); text-decoration: none; border-bottom: 1px dashed rgba(255,255,255,0.45); }
+  .am-link:hover { color: #fff; }
+  .am-credit { font-size: 0.75rem !important; color: var(--muted) !important; margin-top: 14px !important; line-height: 1.45; text-align: center; }
+  .am-credit a { color: inherit; }
   .rules { text-align: left; margin: 12px 0 4px; padding-left: 20px; color: var(--muted); line-height: 1.6; }
 
   .slide-in { animation: slideIn 0.45s ease-out; }
@@ -321,6 +325,7 @@
     <div class="artist" id="aArtist"></div>
     <div class="label">została wydana w roku</div>
     <div class="year" id="aYear"></div>
+    <a class="am-link" id="aAM" target="_blank" rel="noopener">Słuchaj w Apple Music ↗</a>
   </section>
 
   <div class="vs" id="vs">VS</div>
@@ -339,6 +344,7 @@
       <button id="btnYounger">Młodsza ⏩</button>
     </div>
     <div class="year" id="bYear" hidden></div>
+    <a class="am-link" id="bAM" target="_blank" rel="noopener" hidden>Słuchaj w Apple Music ↗</a>
   </section>
 </main>
 
@@ -352,6 +358,7 @@
       <button class="hub-card" data-game="detektyw"><span class="hub-ic">🕵️</span><b>Muzyczny detektyw</b><small>Pytaj „tak / nie” i odgadnij piosenkę komputera, zanim on odgadnie Twoją.</small></button>
       <button class="hub-card" data-game="kod"><span class="hub-ic">🔐</span><b>Muzyczny kod</b><small>Które 4 z 8 piosenek są w kodzie? Ułóż je od najstarszej.</small></button>
     </div>
+    <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
   </div>
 </div>
 
@@ -385,6 +392,7 @@
       <button class="btn secondary wide" data-mode="mix">🌍 Mix<small>wszystkie polskie + kilka zagranicznych</small></button>
     </div>
     <button class="btn friends" id="friendsBtn">👥 Graj ze znajomymi na żywo</button>
+    <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
   </div>
 </div>
 
@@ -430,6 +438,7 @@
       <button class="btn secondary" id="czRandom">🎲 Losowa plansza</button>
       <label class="toggle"><input type="checkbox" id="czHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
     </div>
+    <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
   </div>
 </section>
 
@@ -503,6 +512,7 @@
         <label class="toggle"><input type="checkbox" id="detHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
       </div>
     </div>
+    <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
   </div>
 </section>
 
@@ -530,6 +540,7 @@
       <label class="toggle"><input type="checkbox" id="kodEasy"> Łatwy (piosenki z różnych dekad)</label>
       <label class="toggle"><input type="checkbox" id="kodColors"> 🎨 Kolorowe podpowiedzi</label>
     </div>
+    <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
   </div>
 </section>
 <div class="toast" id="toast"></div>
@@ -1222,7 +1233,8 @@ async function prefetchIds(songs) {
         if (res && res.status === "ok") {
           const url = res.track.previewUrl;
           if (!previews.has(s)) previews.set(s, Promise.resolve(url));
-          try { localStorage.setItem(cacheKey(s), JSON.stringify({ url, t: Date.now() })); } catch (e) {}
+          rememberTrack(s, res.track);
+          saveCache(s, url);
         }
       }
     }
@@ -1260,6 +1272,25 @@ async function findPreview(s) {
   return null;
 }
 
+// Strona utworu w Apple Music (link pokazujemy przy odsłoniętych piosenkach).
+const viewUrls = new Map();
+function rememberTrack(s, r) {
+  if (r && r.trackViewUrl) viewUrls.set(s, r.trackViewUrl.replace(/[?&]uo=\d+/, ""));
+}
+function appleLink(s) {
+  if (viewUrls.has(s)) return viewUrls.get(s);
+  try { const c = JSON.parse(localStorage.getItem(cacheKey(s)) || "null"); if (c && c.view) return c.view; } catch (e) {}
+  if (s.id) return "https://music.apple.com/pl/song/" + s.id;
+  if (s.albumId) return "https://music.apple.com/pl/album/" + s.albumId;
+  return "https://music.apple.com/pl/search?term=" + encodeURIComponent(s.artist + " " + s.title);
+}
+// adres ustalamy dopiero przy kliknięciu – do tego czasu zwykle znamy już pełny link z Apple
+$("aAM").addEventListener("click", () => { if (a) $("aAM").href = appleLink(a); });
+$("bAM").addEventListener("click", () => { if (b) $("bAM").href = appleLink(b); });
+function saveCache(s, url) {
+  try { localStorage.setItem(cacheKey(s), JSON.stringify({ url, t: Date.now(), view: viewUrls.get(s) })); } catch (e) {}
+}
+
 // Znalezione fragmenty zapamiętujemy w przeglądarce (7 dni), żeby nie pytać Apple ponownie.
 const RETRY = "retry";
 const cacheKey = s => "scm-prev2:" + s.artist + "|" + s.title;
@@ -1283,7 +1314,7 @@ function getPreview(s) {
         if (previews.has(s) && previews.get(s) !== p) return previews.get(s);
       }
       const res = await findPreview(s);
-      if (res) try { localStorage.setItem(cacheKey(s), JSON.stringify({ url: res.url, t: Date.now() })); } catch (e) {}
+      if (res) { rememberTrack(s, res.track); saveCache(s, res.url); }
       return res && res.url;
     })().catch(() => { previews.delete(s); return RETRY; });
     previews.set(s, p);
@@ -1405,6 +1436,8 @@ function render() {
   $("aTitle").textContent = "„" + a.title + "”";
   $("aArtist").textContent = a.artist;
   $("aYear").textContent = a.year;
+  $("aAM").href = appleLink(a);
+  $("bAM").hidden = true;
 
   paint($("cardB"), b);
   $("bTitle").textContent = "„" + b.title + "”";
@@ -1450,6 +1483,7 @@ function guess(older) {
   $("bLabel").textContent = "została wydana w roku";
 
   countUp($("bYear"), b.year, () => {
+    $("bAM").href = appleLink(b); $("bAM").hidden = false;
     if (timed && !timerId) return;          // czas minął w trakcie odsłaniania
     const vs = $("vs");
     const next = delay => setTimeout(() => {
@@ -2047,7 +2081,7 @@ window.addEventListener("hashchange", checkHash);
 pool = ALL_PL; loadBest();
 deck = shuffle([...pool]); a = deck.pop(); b = nextSong(a);
 paint($("cardA"), a); paint($("cardB"), b);
-$("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.artist; $("aYear").textContent = a.year;
+$("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.artist; $("aYear").textContent = a.year; $("aAM").href = appleLink(a);
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
