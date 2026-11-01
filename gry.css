@@ -157,3 +157,12 @@
 .m-y { background: #facc15; color: #3a2a00; }
 .m-x { background: #3a3a50; color: #c9c9d6; }
 @media (max-width: 760px) { .kod-colored { grid-template-columns: 1fr 1fr; } }
+
+/* --- Detektyw: pytania wpisywane --- */
+.det-modes { max-width: 620px; }
+.det-modes button { font-size: 0.85rem; }
+.det-ask { display: flex; gap: 6px; margin-bottom: 6px; }
+.det-ask input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid #3a3a50; background: #12121c; color: var(--text); font: inherit; font-size: 0.9rem; }
+.det-ask .btn { padding: 9px 14px; font-size: 0.9rem; }
+.det-qhint { font-size: 0.78rem; color: var(--muted); margin: 4px 0 6px; }
+.det-log small { color: var(--muted); }

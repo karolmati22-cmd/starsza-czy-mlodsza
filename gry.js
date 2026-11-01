@@ -421,6 +421,84 @@ const QUESTIONS = [
   { q: "Wydana w roku parzystym?", t: s => s.year % 2 === 0 },
 ];
 
+
+/* ---- Pytania wpisywane własnymi słowami ---- */
+const DET_HELP = "Zapytaj np. o: kobietę lub mężczyznę, zespół, duet, rap, lata 80., rok (przed 2000, po 2015, w 2018, między 1990 a 2005), " +
+  "XXI wiek, rok parzysty, pierwszą literę tytułu lub wykonawcy, słowo w tytule albo konkretnego wykonawcę.";
+const DECADE_WORDS = { "szescdziesiat": 1960, "siedemdziesiat": 1970, "osiemdziesiat": 1980, "dziewiecdziesiat": 1990, "dwutysieczn": 2000 };
+
+function artistDisplayName(n, board) {
+  for (const s of board) for (const a of splitArtists(s)) if (nrm(a) === n) return a;
+  return n;
+}
+
+// Zamienia pytanie gracza na { label, test } albo null, gdy nie rozumie.
+function parseQuestion(text, board) {
+  const t = " " + nrm(text) + " ";
+  const Y = n => { n = +n; return n < 100 ? (n <= 30 ? 2000 + n : 1900 + n) : n; };
+  const yearQ = (label, test) => ({ label, test });
+  let m;
+
+  // konkretny wykonawca z planszy
+  const names = [...new Set(board.flatMap(s => artistsOf(s)))].filter(n => n.length >= 3).sort((a, b) => b.length - a.length);
+  for (const n of names) if (t.includes(" " + n + " ")) {
+    const shown = artistDisplayName(n, board);
+    return { label: `wykonawca: ${shown}`, test: s => involves(s, n) };
+  }
+  // tytuł konkretnej piosenki – to już strzał
+  for (const s of board) { const tt = nrm(s.title); if (tt.length >= 4 && t.includes(" " + tt + " ")) return { guessHint: true }; }
+
+  // lata / rok
+  if ((m = t.match(/miedzy (\d{2,4}) (?:a|i|do) (\d{2,4})/))) {
+    const lo = Math.min(Y(m[1]), Y(m[2])), hi = Math.max(Y(m[1]), Y(m[2]));
+    return yearQ(`wydana w latach ${lo}–${hi}`, s => s.year >= lo && s.year <= hi);
+  }
+  if ((m = t.match(/(?:przed|wczesniej niz|starsz\w* niz|do) (?:rokiem |roku )?(\d{4})/))) {
+    const y = +m[1]; return yearQ(`wydana przed ${y}`, s => s.year < y);
+  }
+  if ((m = t.match(/(?:pozniej niz|mlodsz\w* niz|nowsz\w* niz|po) (?:roku )?(\d{4})/))) {
+    const y = +m[1]; return yearQ(`wydana po ${y}`, s => s.year > y);
+  }
+  if ((m = t.match(/ od (?:roku )?(\d{4})/))) {
+    const y = +m[1]; return yearQ(`wydana w ${y} lub później`, s => s.year >= y);
+  }
+  if ((m = t.match(/(?:lat\w*|dekad\w*) (\d{2}|\d{4})(?= |$)/)) && +m[1] % 10 === 0) {
+    const d = Y(m[1]); return yearQ(`wydana w latach ${d}–${d + 9}`, s => s.year >= d && s.year <= d + 9);
+  }
+  for (const [w, d] of Object.entries(DECADE_WORDS)) if (t.includes(w)) return yearQ(`wydana w latach ${d}–${d + 9}`, s => s.year >= d && s.year <= d + 9);
+  if (/ xxi | 21 wiek| tym wieku| tym stuleciu| xxi w/.test(t)) return yearQ("wydana w XXI wieku (od 2000)", s => s.year >= 2000);
+  if (/ xx wiek| xx w | 20 wiek| poprzedni\w* wiek| zeszl\w* wiek/.test(t)) return yearQ("wydana w XX wieku (przed 2000)", s => s.year < 2000);
+  if ((m = t.match(/ (19\d\d|20[0-3]\d) /))) { const y = +m[1]; return yearQ(`wydana w ${y} roku`, s => s.year === y); }
+  if (/nieparzyst/.test(t)) return { label: "wydana w roku nieparzystym", test: s => s.year % 2 === 1 };
+  if (/parzyst/.test(t)) return { label: "wydana w roku parzystym", test: s => s.year % 2 === 0 };
+
+  // pierwsza litera / słowa w tytule
+  const letter = t.match(/(?:liter\w*|zaczyna sie(?: na| od)?|na) ([a-z0-9]) /);
+  if (letter && /liter|zaczyna/.test(t)) {
+    const L = letter[1];
+    if (/wykonawc|artyst|nazw\w* zespol|imie|nazwisk|piosenkar/.test(t))
+      return { label: `wykonawca zaczyna się na „${L.toUpperCase()}”`, test: s => nrm(splitArtists(s)[0] || s.artist).startsWith(L) };
+    return { label: `tytuł zaczyna się na „${L.toUpperCase()}”`, test: s => nrm(s.title).startsWith(L) };
+  }
+  if (/jednowyrazow|jedn\w* (slow|wyraz)/.test(t)) return { label: "tytuł ma jedno słowo", test: s => nrm(s.title.replace(/\(.*?\)/g, "")).split(" ").length === 1 };
+  if ((m = t.match(/(?:w tytule|tytul\w* (?:zawiera|ma w sobie)) (?:jest |sie )?(?:slowo |wyraz )?([a-z0-9]{3,})/))) {
+    const w = m[1];
+    const shown = (text.split(/\s+/).map(x => x.replace(/[^\p{L}\p{N}]/gu, "")).find(x => nrm(x) === w)) || w;
+    return { label: `w tytule jest „${shown}”`, test: s => (" " + nrm(s.title) + " ").includes(w) };
+  }
+
+  // wokal, skład, gatunek
+  if (/kobiet|dziewczyn|wokalistk|piosenkark|raperk|babk| pani /.test(t)) return { label: "śpiewa kobieta", test: s => s.traits.female };
+  if (/ rap|hip ?hop/.test(t)) return { label: "rap / hip-hop", test: s => RAP_SET.has(s) };
+  if (/mezczyzn|facet|chlopak| chlop|wokalista |piosenkarz| pan /.test(t)) return { label: "śpiewa mężczyzna", test: s => s.traits.male };
+  if (/duet|feat|gosc|wspolprac|kilku wykonaw|wiecej niz jed|dwoch wykonaw|kilka osob/.test(t)) return { label: "więcej niż jeden wykonawca", test: s => s.traits.multi };
+  if (/solist|solow| solo /.test(t)) return { label: "solista (nie zespół)", test: s => !s.traits.band };
+  if (/zespol|grup|kapel| band/.test(t)) return { label: "zespół", test: s => s.traits.band };
+  return null;
+}
+
+const pytan = n => n === 1 ? "pytanie" : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "pytania" : "pytań";
+
 // 24 piosenki: mieszanka epok i wykonawców (bez powtórek wykonawcy). To samo ziarno = ta sama plansza.
 function detBoard(r) {
   const picked = [];
@@ -433,7 +511,8 @@ function detBoard(r) {
 }
 
 const Detektyw = {
-  mode: "cpu",                       // "cpu" albo "online"
+  mode: store.get("scm-det-mode", "solo") === "cpu" ? "cpu" : "solo",   // "solo", "cpu" albo "online"
+  questions: 0,
   board: [], mySecret: null, cpuSecret: null, oppSecret: null, myLeft: null, cpuLeft: null, oppLeft: 24,
   asked: new Set(), cpuAsked: new Set(), turn: "me", over: false, pending: null, result: null,
   hard: store.get("scm-det-hard", false), smart: store.get("scm-det-smart", false),
@@ -442,12 +521,16 @@ const Detektyw = {
     $("detHard").checked = this.hard; $("detSmart").checked = this.smart;
     if (joinCode) { this.setMode("online"); DetNet.showJoin(joinCode, joinBroker); }
     else if (this.mode === "online" && DetNet.client) this.render();
-    else this.setMode("cpu");
+    else this.setMode(this.mode === "online" ? "solo" : this.mode);
   },
   setMode(m) {
-    if (m === this.mode && (m === "online" ? true : this.board.length)) { this.syncModeUi(); if (m === "cpu") return; }
-    if (m === "cpu") { DetNet.leave(true); this.mode = "cpu"; this.syncModeUi(); this.start(); }
-    else { this.mode = "online"; $("doName1").value = playerName; this.syncModeUi(); if (!DetNet.client) DetNet.view("doMenu"); }
+    if (m === this.mode && m !== "online" && this.board.length) { this.syncModeUi(); return; }
+    if (m === "online") { this.mode = "online"; $("doName1").value = playerName; this.syncModeUi(); if (!DetNet.client) DetNet.view("doMenu"); return; }
+    DetNet.leave(true);
+    this.mode = m;
+    store.set("scm-det-mode", m);
+    this.syncModeUi();
+    m === "solo" ? this.startSolo() : this.start();
   },
   syncModeUi() {
     document.querySelectorAll("#detModeSeg button").forEach(b => b.classList.toggle("on", b.dataset.m === this.mode));
@@ -456,7 +539,16 @@ const Detektyw = {
     $("detGame").hidden = this.mode === "online" && !DetNet.playing;
   },
 
-  // ---- gra z komputerem ----
+  // ---- sam zgadujesz: komputer tylko odpowiada ----
+  startSolo() {
+    this.board = detBoard(Math.random);
+    this.cpuSecret = this.board[Math.floor(Math.random() * this.board.length)];
+    this.mySecret = null; this.oppSecret = null;
+    this.reset("me");
+    this.log("🔎 Komputer ukrył jedną z tych 24 piosenek. Pytaj własnymi słowami albo wybieraj gotowe pytania – im mniej pytań, tym lepiej!", "sys");
+  },
+
+  // ---- wyścig z komputerem ----
   start() {
     const r = Math.random;
     this.board = detBoard(r);
@@ -468,7 +560,8 @@ const Detektyw = {
   reset(firstTurn) {
     this.myLeft = new Set(this.board); this.cpuLeft = new Set(this.board); this.oppLeft = this.board.length;
     this.asked.clear(); this.cpuAsked.clear();
-    this.turn = firstTurn; this.over = false; this.pending = null; this.result = null;
+    this.turn = firstTurn; this.over = false; this.pending = null; this.result = null; this.questions = 0;
+    $("detInput").value = "";
     $("detLog").innerHTML = "";
     prefetchIds(this.board).catch(() => {});
     this.render();
@@ -484,41 +577,63 @@ const Detektyw = {
     this.syncModeUi();
   },
   opp() { return this.mode === "online" ? DetNet.oppName : "Komputer"; },
+  resolve(spec) {
+    if (typeof spec.i === "number") { const Q = QUESTIONS[spec.i]; return Q ? { label: Q.q, test: Q.t } : null; }
+    return parseQuestion(spec.text || "", this.board);
+  },
+  askText() {
+    const text = $("detInput").value.trim().slice(0, 120);
+    if (!text) { $("detInput").focus(); return; }
+    if (this.ask({ text }) !== false) $("detInput").value = "";
+  },
 
   log(html, cls) { $("detLog").prepend(el("li", cls || "", html)); },
-  ask(i) {
-    if (this.over || this.turn !== "me" || this.asked.has(i)) return;
-    this.asked.add(i);
+  ask(spec) {
+    if (typeof spec === "number") spec = { i: spec };
+    if (this.over || this.turn !== "me") return false;
+    if (typeof spec.i === "number" && this.asked.has(spec.i)) return false;
+    const R = this.resolve(spec);
+    if (!R) { this.log(`🤔 Nie rozumiem pytania „${esc(spec.text)}”. ${esc(DET_HELP)}`, "sys"); return false; }
+    if (R.guessHint) { this.log("🎯 Żeby wskazać konkretną piosenkę, kliknij ją na planszy – to strzał.", "sys"); return false; }
+    if (typeof spec.i === "number") this.asked.add(spec.i);
     if (this.mode === "online") {
       this.turn = "wait";
-      DetNet.send({ t: "ask", q: i });
+      DetNet.send({ t: "ask", q: spec.i, text: spec.text });
       this.render();
-      return;
+      return true;
     }
-    const Q = QUESTIONS[i];
-    this.applyAnswer(i, Q.t(this.cpuSecret));
+    this.applyAnswer(R, R.test(this.cpuSecret), spec);
+    if (this.mode === "solo") { this.questions++; this.render(); return true; }
     this.turn = "cpu";
     this.render();
     setTimeout(() => this.cpuTurn(), 1100);
+    return true;
   },
-  applyAnswer(i, ans) {
-    const Q = QUESTIONS[i];
-    for (const s of [...this.myLeft]) if (Q.t(s) !== ans) this.myLeft.delete(s);
-    this.log(`Ty: <b>${esc(Q.q)}</b> → ${esc(this.opp())}: <b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b> · zostało Ci ${this.myLeft.size}`, "me");
+  qHtml(R, spec) {
+    return spec.text ? `„${esc(spec.text)}”` : esc(R.label);
+  },
+  ansHtml(R, ans, spec) {
+    return `<b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b>` + (spec.text ? ` <small>(rozumiem: ${esc(R.label)})</small>` : "");
+  },
+  applyAnswer(R, ans, spec) {
+    for (const s of [...this.myLeft]) if (R.test(s) !== ans) this.myLeft.delete(s);
+    this.log(`Ty: <b>${this.qHtml(R, spec)}</b> → ${esc(this.opp())}: ${this.ansHtml(R, ans, spec)} · zostało ${this.myLeft.size}`, "me");
   },
   // przeciwnik online zadał pytanie – odpowiada automatycznie to urządzenie
-  answerOpp(i) {
-    const Q = QUESTIONS[i];
-    if (!Q || this.over) return;
-    const ans = Q.t(this.mySecret);
-    DetNet.send({ t: "answer", q: i, a: ans });
-    this.log(`${esc(DetNet.oppName)}: <b>${esc(Q.q)}</b> → o Twojej piosence: <b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b>`, "cpu");
+  answerOpp(spec) {
+    const R = this.resolve(spec);
+    if (!R || R.guessHint || this.over) return;
+    const ans = R.test(this.mySecret);
+    DetNet.send({ t: "answer", q: spec.i, text: spec.text, a: ans });
+    this.log(`${esc(DetNet.oppName)}: <b>${this.qHtml(R, spec)}</b> → o Twojej piosence: ${this.ansHtml(R, ans, spec)}`, "cpu");
     this.turn = "me";
     this.render();
   },
-  gotAnswer(i, ans) {
+  gotAnswer(spec, ans) {
     if (this.turn !== "wait" || this.over) return;
-    this.applyAnswer(i, !!ans);
+    const R = this.resolve(spec);
+    if (!R) return;
+    this.applyAnswer(R, !!ans, spec);
     DetNet.send({ t: "left", n: this.myLeft.size });
     this.turn = "opp";
     this.render();
@@ -560,6 +675,14 @@ const Detektyw = {
     if (!s) return;
     this.pending = null;
     this.log(`Ty strzelasz: <b>„${esc(s.title)}”</b>…`, "me");
+    if (this.mode === "solo") {
+      this.questions++;
+      if (s === this.cpuSecret) { this.end("me", `Zgadnięte w ${this.questions} ${this.questions === 1 ? "pytaniu" : "pytaniach"}.`); return; }
+      this.myLeft.delete(s);
+      this.log(`❌ To nie ta piosenka (+1 pytanie) · zostało ${this.myLeft.size}`, "sys");
+      this.render();
+      return;
+    }
     if (this.mode === "online") {
       this.turn = "wait";
       DetNet.send({ t: "guess", i: this.board.indexOf(s) });
@@ -587,6 +710,18 @@ const Detektyw = {
     this.over = true;
     this.turn = "over";
     stopClip();
+    if (this.mode === "solo") {
+      const st = store.get("scm-det-solo", { played: 0, best: 0 });
+      st.played++;
+      const record = !st.best || this.questions < st.best;
+      if (record) st.best = this.questions;
+      store.set("scm-det-solo", st);
+      this.result = { winner, why, st, record };
+      this.log(`🎉 ${esc(why)}${record ? " Nowy rekord!" : ""}`, "sys");
+      track("koniec", { gra: "detektyw", tryb: "sam", pytania: this.questions });
+      this.render();
+      return;
+    }
     const key = this.mode === "online" ? "scm-det-online-stats" : "scm-det-stats";
     const st = store.get(key, { won: 0, lost: 0 });
     winner === "me" ? st.won++ : st.lost++;
@@ -597,14 +732,19 @@ const Detektyw = {
     this.render();
   },
   render() {
-    if (!this.board.length || !this.mySecret) return;
-    const online = this.mode === "online";
+    if (!this.board.length || (!this.mySecret && this.mode !== "solo")) return;
+    const online = this.mode === "online", solo = this.mode === "solo";
     const oppSecret = online ? this.oppSecret : this.cpuSecret;
     const my = $("detMine");
     my.innerHTML = "";
-    my.appendChild(clipButton(this.mySecret));
-    my.appendChild(el("div", "", `<small>Twoja ukryta piosenka (${esc(this.opp())} jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span>`));
-    $("detCpu").textContent = this.over ? "" : online
+    my.hidden = solo;
+    if (!solo) {
+      my.appendChild(clipButton(this.mySecret));
+      my.appendChild(el("div", "", `<small>Twoja ukryta piosenka (${esc(this.opp())} jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span>`));
+    }
+    $("detCpu").textContent = this.over ? "" : solo
+      ? `❓ Pytania: ${this.questions} · zostało ${this.myLeft.size} z ${this.board.length} piosenek`
+      : online
       ? `👥 ${DetNet.oppName}: zostało ${this.oppLeft} kandydatów · Tobie ${this.myLeft.size}`
       : `🤖 Komputerowi zostało ${this.cpuLeft.size} kandydatów · Tobie ${this.myLeft.size}`;
     const grid = $("detGrid");
@@ -627,13 +767,20 @@ const Detektyw = {
       b.onclick = () => this.ask(i);
       qs.appendChild(b);
     });
-    $("detTurn").textContent = this.over ? "" : this.turn === "me" ? "Twoja kolej: zadaj pytanie albo kliknij piosenkę, żeby strzelić."
+    $("detInput").disabled = $("detAskBtn").disabled = this.over || this.turn !== "me";
+    $("detTurn").textContent = this.over ? "" : this.turn === "me"
+      ? (solo ? "Wpisz pytanie albo wybierz gotowe. Gdy wiesz – kliknij piosenkę." : "Twoja kolej: zadaj pytanie albo kliknij piosenkę, żeby strzelić.")
       : this.turn === "wait" ? `⏳ Czekam na odpowiedź od ${this.opp()}…`
       : online ? `⏳ Kolej: ${DetNet.oppName} – za chwilę zada pytanie.` : "🤖 Komputer myśli…";
     $("detConfirm").hidden = !this.pending;
-    if (this.pending) $("detConfirmText").textContent = `Strzelasz: „${this.pending.title}”? Pomyłka = przegrana.`;
+    if (this.pending) $("detConfirmText").textContent = `Strzelasz: „${this.pending.title}”? ` + (solo ? "Pudło kosztuje +1 pytanie." : "Pomyłka = przegrana.");
     $("detResult").hidden = !this.over;
-    if (this.over && this.result) {
+    if (this.over && this.result && solo) {
+      $("detResultTitle").textContent = this.result.record ? "🏆 Nowy rekord!" : "🎉 Zgadnięte!";
+      $("detResultInfo").textContent = `${this.result.why} To była „${this.cpuSecret.title}” – ${this.cpuSecret.artist} (${this.cpuSecret.year}). ` +
+        `Twój rekord: ${this.result.st.best} ${pytan(this.result.st.best)} · rozegrane: ${this.result.st.played}.`;
+      $("detAgain").textContent = "Zagraj jeszcze raz";
+    } else if (this.over && this.result) {
       $("detResultTitle").textContent = this.result.winner === "me" ? "🏆 Wygrywasz!" : `Wygrywa ${this.opp()}`;
       $("detResultInfo").textContent = `${this.result.why} ` +
         (oppSecret ? `Ukryta piosenka (${this.opp()}): „${oppSecret.title}” – ${oppSecret.artist} (${oppSecret.year}). ` : "") +
@@ -723,8 +870,8 @@ const DetNet = {
     switch (m.t) {
       case "setup": if (!this.host && m.round > this.round) this.beginRound(m.round, m.seed, !m.hostStarts); break;
       case "rematch": if (this.host) this.newRound(); break;
-      case "ask": Detektyw.answerOpp(m.q); break;
-      case "answer": Detektyw.gotAnswer(m.q, m.a); break;
+      case "ask": Detektyw.answerOpp({ i: m.q, text: typeof m.text === "string" ? m.text.slice(0, 120) : undefined }); break;
+      case "answer": Detektyw.gotAnswer({ i: m.q, text: typeof m.text === "string" ? m.text.slice(0, 120) : undefined }, m.a); break;
       case "left": Detektyw.oppLeft = m.n; Detektyw.render(); break;
       case "guess": Detektyw.oppGuessed(m.i); break;
       case "result": Detektyw.gotResult(m.correct, m.secret); break;
@@ -798,8 +945,11 @@ $("doShare").onclick = async () => {
 
 $("detYes").onclick = () => Detektyw.confirmGuess();
 $("detNo").onclick = () => { Detektyw.pending = null; Detektyw.render(); };
-$("detNew").onclick = () => Detektyw.mode === "online" ? DetNet.rematch() : Detektyw.start();
-$("detAgain").onclick = () => Detektyw.mode === "online" ? DetNet.rematch() : Detektyw.start();
+const detRestart = () => Detektyw.mode === "online" ? DetNet.rematch() : Detektyw.mode === "solo" ? Detektyw.startSolo() : Detektyw.start();
+$("detNew").onclick = detRestart;
+$("detAgain").onclick = detRestart;
+$("detAskBtn").onclick = () => Detektyw.askText();
+$("detInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); Detektyw.askText(); } });
 $("detHard").onchange = () => { Detektyw.hard = $("detHard").checked; store.set("scm-det-hard", Detektyw.hard); Detektyw.render(); };
 $("detSmart").onchange = () => { Detektyw.smart = $("detSmart").checked; store.set("scm-det-smart", Detektyw.smart); };
 
