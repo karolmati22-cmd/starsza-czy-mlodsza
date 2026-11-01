@@ -42,6 +42,7 @@ function toast(msg) {
 }
 
 async function shareText(text) {
+  track("udostepnij", { gra: currentScreen || "?" });
   if (navigator.share && matchMedia("(pointer: coarse)").matches) {
     try { await navigator.share({ text }); return; } catch (e) { if (e.name === "AbortError") return; }
   }
@@ -121,6 +122,7 @@ function openStarsza() {
 
 document.querySelectorAll("[data-game]").forEach(b => b.onclick = () => {
   const g = b.dataset.game;
+  track("gra", { gra: g });
   if (g === "starsza") openStarsza(); else openScreen(g);
 });
 document.querySelectorAll(".back-hub").forEach(b => b.onclick = showHub);
@@ -298,6 +300,7 @@ const Czworki = {
       }
     }
     this.won = won;
+    if (!silent) track("koniec", { gra: "czworki", plansza: this.daily ? "dnia" : "losowa", wygrana: won, pomylki: this.mistakes });
   },
   shareGrid() {
     return this.guesses.map(g => g.map(t => C_COLORS[t.group.color].emoji).join("")).join("\n");
@@ -502,6 +505,7 @@ const Detektyw = {
     winner === "me" ? st.won++ : st.lost++;
     store.set("scm-det-stats", st);
     this.result = { winner, why, st };
+    track("koniec", { gra: "detektyw", wygrana: winner === "me", komputer: this.smart ? "trudny" : "latwy" });
     this.log(winner === "me" ? `🏆 Wygrywasz! ${esc(why)}` : `🤖 Wygrywa komputer. ${esc(why)}`, "sys");
     this.render();
   },
@@ -608,7 +612,10 @@ const Kod = {
     this.row.forEach((s, i) => { if (this.code[i] === s) black++; else if (this.code.includes(s)) white++; });
     this.history.push({ row: [...this.row], black, white });
     this.row = [];
-    if (black === 4 || this.history.length >= KOD_TRIES) this.over = true;
+    if (black === 4 || this.history.length >= KOD_TRIES) {
+      this.over = true;
+      if (!silent) track("koniec", { gra: "kod", kod: this.daily ? "dnia" : "losowy", wygrana: black === 4, proby: this.history.length });
+    }
     if (this.daily) store.set("scm-kod-day", { date: this.dateKey, rows: this.history.map(h => h.row.map(s => this.pool8.indexOf(s))) });
     if (!silent) this.render();
   },

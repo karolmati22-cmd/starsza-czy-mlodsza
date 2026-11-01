@@ -922,6 +922,8 @@ document.querySelectorAll("[data-mode]").forEach(btn => {
 });
 
 const $ = id => document.getElementById(id);
+// Statystyki (Umami, bez ciasteczek) – działa tylko na opublikowanej stronie.
+function track(name, data) { try { if (window.umami) window.umami.track(name, data); } catch (e) {} }
 let pool = [], deck = [], a = null, b = null, score = 0, best = 0, locked = false, mode = "pl";
 
 /* ---- Tryb gry: klasyczny albo na czas ---- */
@@ -1391,6 +1393,7 @@ function guess(older) {
 
 function gameOver() {
   stopTimer();
+  track("koniec", { gra: "starsza", kategoria: mode, tryb: timed ? "na czas" : "klasyczny", wynik: score });
   if (ctx && ctx.kind === "live") { liveGameOver(); return; }
   const diff = Math.abs(a.year - b.year);
   $("endMsg").textContent = timed
@@ -1442,6 +1445,7 @@ function startGame(opts) {
   const run = prefetchIds(pool).catch(() => {}).finally(() => { if (prefetching === run) prefetching = null; });
   prefetching = run;
   render();
+  track("start", { gra: "starsza", kategoria: mode, tryb: timed ? "na czas" : "klasyczny", kontekst: ctx ? ctx.kind : "solo" });
   if (timed) startTimer();
   if ($("autoplay").checked) togglePlay(b);
 }
@@ -1501,6 +1505,7 @@ $("nameOk").onclick = () => { setName($("nameInput").value); $("nameRow").hidden
 $("nameInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.stopPropagation(); $("nameOk").click(); } });
 
 async function doShare() {
+  track("udostepnij", { gra: "starsza" });
   const { text, url } = shareMessage();
   const full = text + " " + url;
   const status = $("shareStatus");
@@ -1809,6 +1814,7 @@ $("lvCreate").onclick = () => {
   unlockAudio();
   let code = ""; for (let i = 0; i < 4; i++) code += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
   live && leaveRoom();
+  track("pokoj", { akcja: "utworz" });
   openRoom(code);
 };
 $("lvJoinCode").onclick = () => {
@@ -1816,12 +1822,14 @@ $("lvJoinCode").onclick = () => {
   const code = $("lvCode").value.trim().toUpperCase();
   if (!/^[A-Z]{4}$/.test(code)) { $("lvCode").focus(); return; }
   unlockAudio();
+  track("pokoj", { akcja: "dolacz kodem" });
   openRoom(code, 0);
 };
 $("lvCode").addEventListener("keydown", e => { if (e.key === "Enter") { e.stopPropagation(); $("lvJoinCode").click(); } });
 $("lvJoinBtn").onclick = () => {
   if (!needName($("lvName2"))) return;
   unlockAudio();
+  track("pokoj", { akcja: "dolacz z linku" });
   openRoom($("lvJoinBtn").dataset.code, +$("lvJoinBtn").dataset.broker || 0);
 };
 $("lvJoinCancel").onclick = $("lvConnCancel").onclick = $("lvLeave").onclick = leaveRoom;
@@ -1926,6 +1934,7 @@ function showChallenge() {
     mode = challenge.m;
     setGameType(!!challenge.t);
     ctx = { kind: "challenge", from: challenge.n || "Znajomy", score: challenge.p, seed: challenge.s };
+    track("wyzwanie", { akcja: "przyjete", kategoria: challenge.m });
     startGame({ seed: challenge.s });
   };
 }
