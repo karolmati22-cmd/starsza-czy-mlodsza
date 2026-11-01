@@ -504,7 +504,7 @@
   <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🔐 Muzyczny kod</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
     <p class="scr-sub" id="kodSub"></p>
-    <p class="scr-help">Komputer wybrał 4 z tych 8 piosenek i ułożył je od najstarszej do najmłodszej. Klikaj piosenki, żeby ułożyć swój zestaw, i sprawdź: <b>●</b> dobra piosenka na dobrym miejscu, <b>○</b> piosenka jest w kodzie, ale na innym miejscu. Masz 8 prób.</p>
+    <p class="scr-help">Komputer wybrał 4 z tych 8 piosenek i ułożył je od najstarszej do najmłodszej. Klikaj piosenki, żeby ułożyć swój zestaw, i kliknij „Sprawdź” – podpowiedzi pokażą, co już pasuje, a co trzeba zmienić. Masz 8 prób.</p>
     <div class="kod-pool" id="kodPool"></div>
     <div id="kodPlay">
       <p class="kod-tries" id="kodTries"></p>
@@ -515,12 +515,14 @@
       <h3 id="kodResultTitle"></h3><ol class="kod-solution" id="kodSolution"></ol>
       <button class="btn" id="kodShare">📤 Udostępnij wynik</button>
     </div>
+    <div class="kod-legend" id="kodLegend"></div>
     <ol class="kod-history" id="kodHistory"></ol>
     <div class="scr-opts">
       <button class="btn secondary" id="kodDaily">📅 Kod dnia</button>
       <button class="btn secondary" id="kodRandom">🎲 Losowy kod</button>
       <select id="kodMode" aria-label="Kategoria"></select>
       <label class="toggle"><input type="checkbox" id="kodEasy"> Łatwy (piosenki z różnych dekad)</label>
+      <label class="toggle"><input type="checkbox" id="kodColors"> 🎨 Kolorowe podpowiedzi</label>
     </div>
   </div>
 </section>

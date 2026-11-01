@@ -145,3 +145,15 @@
 .do-waiting { font-weight: 700; color: var(--text) !important; }
 .do-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
 .det-online .do-bar .btn { width: auto; margin: 0; }
+
+/* --- Kod: kolorowe podpowiedzi i legenda --- */
+.kod-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; margin: 18px auto 0; max-width: 760px; font-size: 0.85rem; color: var(--muted); }
+.kod-legend b { color: var(--text); font-size: 1rem; }
+.kod-note { flex-basis: 100%; text-align: center; font-size: 0.8rem; }
+.kod-colored { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.kod-mark { padding: 6px 8px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.kod-legend .kod-mark { font-size: 0.8rem; }
+.m-g { background: #22c55e; color: #052e14; }
+.m-y { background: #facc15; color: #3a2a00; }
+.m-x { background: #3a3a50; color: #c9c9d6; }
+@media (max-width: 760px) { .kod-colored { grid-template-columns: 1fr 1fr; } }

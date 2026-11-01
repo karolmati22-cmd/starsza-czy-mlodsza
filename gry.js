@@ -808,13 +808,14 @@ $("detSmart").onchange = () => { Detektyw.smart = $("detSmart").checked; store.s
 const KOD_TRIES = 8;
 const Kod = {
   pool8: [], code: [], row: [], history: [], over: false, daily: true, dateKey: "",
-  mode: store.get("scm-kod-mode", "pl"), easy: store.get("scm-kod-easy", true),
+  mode: store.get("scm-kod-mode", "pl"), easy: store.get("scm-kod-easy", true), colors: store.get("scm-kod-colors", true),
 
   open() {
     $("kodMode").innerHTML = Object.keys(MODES).filter(k => MODES[k].songs.length >= 10)
       .map(k => `<option value="${k}">${MODES[k].label}</option>`).join("");
     $("kodMode").value = this.mode;
     $("kodEasy").checked = this.easy;
+    $("kodColors").checked = this.colors;
     this.start(true);
   },
   start(daily) {
@@ -858,7 +859,9 @@ const Kod = {
     if (this.row.length !== 4 || this.over) return;
     let black = 0, white = 0;
     this.row.forEach((s, i) => { if (this.code[i] === s) black++; else if (this.code.includes(s)) white++; });
-    this.history.push({ row: [...this.row], black, white });
+    // ocena każdej pozycji osobno (do kolorowych podpowiedzi): g = dobre miejsce, y = złe miejsce, x = nie ma w kodzie
+    const marks = this.row.map((s, i) => this.code[i] === s ? "g" : this.code.includes(s) ? "y" : "x");
+    this.history.push({ row: [...this.row], black, white, marks });
     this.row = [];
     if (black === 4 || this.history.length >= KOD_TRIES) {
       this.over = true;
@@ -896,11 +899,21 @@ const Kod = {
     this.history.forEach((h, n) => {
       const li = el("li", "kod-h");
       li.appendChild(el("span", "kod-n", n + 1 + "."));
-      li.appendChild(el("span", "kod-row", h.row.map(s => esc(s.title)).join(" → ")));
-      li.appendChild(el("span", "kod-pegs", h.pegs = this.pegs(h)));
+      if (this.colors) {
+        const row = el("span", "kod-row kod-colored");
+        h.row.forEach((s, i) => row.appendChild(el("span", "kod-mark m-" + h.marks[i], esc(s.title))));
+        li.appendChild(row);
+      } else {
+        li.appendChild(el("span", "kod-row", h.row.map(s => esc(s.title)).join(" → ")));
+        li.appendChild(el("span", "kod-pegs", this.pegs(h)));
+      }
       hist.appendChild(li);
     });
     $("kodTries").textContent = this.over ? "" : `Próba ${this.history.length + 1} z ${KOD_TRIES}`;
+    $("kodLegend").innerHTML = this.colors
+      ? '<span class="kod-mark m-g">dobre miejsce</span><span class="kod-mark m-y">jest w kodzie, złe miejsce</span><span class="kod-mark m-x">nie ma w kodzie</span>'
+      : '<span><b>●</b> dobra piosenka na dobrym miejscu</span><span><b>○</b> jest w kodzie, ale na złym miejscu</span><span><b>·</b> nie ma jej w kodzie</span>' +
+        '<span class="kod-note">Kropki nie mówią, której piosenki dotyczą – to trzeba wydedukować.</span>';
     const won = this.history.length && this.history[this.history.length - 1].black === 4;
     $("kodResult").hidden = !this.over;
     if (this.over) {
@@ -920,9 +933,11 @@ $("kodDaily").onclick = () => Kod.start(true);
 $("kodRandom").onclick = () => Kod.start(false);
 $("kodMode").onchange = () => { Kod.mode = $("kodMode").value; store.set("scm-kod-mode", Kod.mode); Kod.start(false); };
 $("kodEasy").onchange = () => { Kod.easy = $("kodEasy").checked; store.set("scm-kod-easy", Kod.easy); Kod.start(false); };
+$("kodColors").onchange = () => { Kod.colors = $("kodColors").checked; store.set("scm-kod-colors", Kod.colors); Kod.render(); };
 $("kodShare").onclick = () => shareText(`🔐 Muzyczny kod ${Kod.daily ? Kod.dateKey.split("-").reverse().join(".") : "(losowy)"} – ` +
   (Kod.won ? `złamany w ${Kod.history.length}/${KOD_TRIES}` : `nie złamany (${KOD_TRIES}/${KOD_TRIES})`) + "\n" +
-  Kod.history.map(h => h.black === 4 ? "🟢🟢🟢🟢" : "⚫".repeat(h.black) + "⚪".repeat(h.white) + "▫️".repeat(4 - h.black - h.white)).join("\n") + "\n" +
+  Kod.history.map(h => Kod.colors ? h.marks.map(m => ({ g: "🟩", y: "🟨", x: "⬜" })[m]).join("")
+    : h.black === 4 ? "🟢🟢🟢🟢" : "⚫".repeat(h.black) + "⚪".repeat(h.white) + "▫️".repeat(4 - h.black - h.white)).join("\n") + "\n" +
   location.origin + location.pathname + "#kod");
 
 /* ===================== Start ===================== */
