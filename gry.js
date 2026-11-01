@@ -99,19 +99,20 @@ function hideAllScreens() {
   currentScreen = null;
 }
 function showHub() {
+  if (typeof DetNet !== "undefined" && DetNet.client) DetNet.leave(false);
   hideAllScreens();
   stopTimer(); stopAudio();
   if (location.hash) history.replaceState(null, "", location.pathname);
   document.querySelectorAll(".overlay").forEach(o => o.classList.toggle("show", o.id === "hubOverlay"));
 }
-function openScreen(key) {
+function openScreen(key, ...args) {
   hideAllScreens();
   stopTimer(); stopAudio();
   document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show"));
   $(SCREENS[key]).hidden = false;
   currentScreen = key;
-  history.replaceState(null, "", "#" + key);
-  GAMES[key].open();
+  if (!(key === "detektyw" && DetNet.client)) history.replaceState(null, "", "#" + key);
+  GAMES[key].open(...args);
 }
 function openStarsza() {
   hideAllScreens();
@@ -420,45 +421,107 @@ const QUESTIONS = [
   { q: "Wydana w roku parzystym?", t: s => s.year % 2 === 0 },
 ];
 
-const Detektyw = {
-  board: [], mySecret: null, cpuSecret: null, myLeft: null, cpuLeft: null, asked: new Set(), cpuAsked: new Set(),
-  turn: "me", over: false, pending: null, hard: store.get("scm-det-hard", false), smart: store.get("scm-det-smart", false),
+// 24 piosenki: mieszanka epok i wykonawców (bez powtórek wykonawcy). To samo ziarno = ta sama plansza.
+function detBoard(r) {
+  const picked = [];
+  for (const s of shuffled(DET_POOL, r)) {
+    if (picked.some(p => primaryOf(p) === primaryOf(s))) continue;
+    picked.push(s);
+    if (picked.length === 24) break;
+  }
+  return picked;
+}
 
-  open() { $("detHard").checked = this.hard; $("detSmart").checked = this.smart; this.start(); },
+const Detektyw = {
+  mode: "cpu",                       // "cpu" albo "online"
+  board: [], mySecret: null, cpuSecret: null, oppSecret: null, myLeft: null, cpuLeft: null, oppLeft: 24,
+  asked: new Set(), cpuAsked: new Set(), turn: "me", over: false, pending: null, result: null,
+  hard: store.get("scm-det-hard", false), smart: store.get("scm-det-smart", false),
+
+  open(joinCode, joinBroker) {
+    $("detHard").checked = this.hard; $("detSmart").checked = this.smart;
+    if (joinCode) { this.setMode("online"); DetNet.showJoin(joinCode, joinBroker); }
+    else if (this.mode === "online" && DetNet.client) this.render();
+    else this.setMode("cpu");
+  },
+  setMode(m) {
+    if (m === this.mode && (m === "online" ? true : this.board.length)) { this.syncModeUi(); if (m === "cpu") return; }
+    if (m === "cpu") { DetNet.leave(true); this.mode = "cpu"; this.syncModeUi(); this.start(); }
+    else { this.mode = "online"; $("doName1").value = playerName; this.syncModeUi(); if (!DetNet.client) DetNet.view("doMenu"); }
+  },
+  syncModeUi() {
+    document.querySelectorAll("#detModeSeg button").forEach(b => b.classList.toggle("on", b.dataset.m === this.mode));
+    $("detOnline").hidden = this.mode !== "online";
+    $("detSmartWrap").hidden = this.mode !== "cpu";
+    $("detGame").hidden = this.mode === "online" && !DetNet.playing;
+  },
+
+  // ---- gra z komputerem ----
   start() {
     const r = Math.random;
-    // 24 piosenki: mieszanka epok i wykonawców (bez powtórek wykonawcy)
-    const picked = [];
-    for (const s of shuffled(DET_POOL, r)) {
-      if (picked.some(p => primaryOf(p) === primaryOf(s))) continue;
-      picked.push(s);
-      if (picked.length === 24) break;
-    }
-    this.board = picked;
-    const two = shuffled(picked, r);
-    this.mySecret = two[0]; this.cpuSecret = two[1];
-    this.myLeft = new Set(picked); this.cpuLeft = new Set(picked);
-    this.asked.clear(); this.cpuAsked.clear();
-    this.turn = "me"; this.over = false; this.pending = null;
-    $("detLog").innerHTML = "";
+    this.board = detBoard(r);
+    const two = shuffled(this.board, r);
+    this.mySecret = two[0]; this.cpuSecret = two[1]; this.oppSecret = null;
+    this.reset("me");
     this.log("🕵️ Komputer wylosował ukrytą piosenkę z planszy. Ty też masz swoją – zadawaj pytania i odgadnij jego piosenkę pierwszy!", "sys");
-    prefetchIds(picked).catch(() => {});
+  },
+  reset(firstTurn) {
+    this.myLeft = new Set(this.board); this.cpuLeft = new Set(this.board); this.oppLeft = this.board.length;
+    this.asked.clear(); this.cpuAsked.clear();
+    this.turn = firstTurn; this.over = false; this.pending = null; this.result = null;
+    $("detLog").innerHTML = "";
+    prefetchIds(this.board).catch(() => {});
     this.render();
   },
-  log(html, cls) {
-    const li = el("li", cls || "", html);
-    $("detLog").prepend(li);
+
+  // ---- gra ze znajomym ----
+  startOnline(seedNum, iStart) {
+    this.board = detBoard(mulberry32(seedNum));
+    this.mySecret = this.board[Math.floor(Math.random() * this.board.length)];   // tajna – zna ją tylko to urządzenie
+    this.cpuSecret = null; this.oppSecret = null;
+    this.reset(iStart ? "me" : "opp");
+    this.log(`🕵️ Gracie z ${esc(DetNet.oppName)} na tej samej planszy. ${iStart ? "Zaczynasz Ty – zadaj pierwsze pytanie." : esc(DetNet.oppName) + " zaczyna."}`, "sys");
+    this.syncModeUi();
   },
+  opp() { return this.mode === "online" ? DetNet.oppName : "Komputer"; },
+
+  log(html, cls) { $("detLog").prepend(el("li", cls || "", html)); },
   ask(i) {
     if (this.over || this.turn !== "me" || this.asked.has(i)) return;
-    const Q = QUESTIONS[i];
     this.asked.add(i);
-    const ans = Q.t(this.cpuSecret);
-    for (const s of [...this.myLeft]) if (Q.t(s) !== ans) this.myLeft.delete(s);
-    this.log(`Ty: <b>${esc(Q.q)}</b> → komputer: <b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b> · zostało Ci ${this.myLeft.size}`, "me");
+    if (this.mode === "online") {
+      this.turn = "wait";
+      DetNet.send({ t: "ask", q: i });
+      this.render();
+      return;
+    }
+    const Q = QUESTIONS[i];
+    this.applyAnswer(i, Q.t(this.cpuSecret));
     this.turn = "cpu";
     this.render();
     setTimeout(() => this.cpuTurn(), 1100);
+  },
+  applyAnswer(i, ans) {
+    const Q = QUESTIONS[i];
+    for (const s of [...this.myLeft]) if (Q.t(s) !== ans) this.myLeft.delete(s);
+    this.log(`Ty: <b>${esc(Q.q)}</b> → ${esc(this.opp())}: <b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b> · zostało Ci ${this.myLeft.size}`, "me");
+  },
+  // przeciwnik online zadał pytanie – odpowiada automatycznie to urządzenie
+  answerOpp(i) {
+    const Q = QUESTIONS[i];
+    if (!Q || this.over) return;
+    const ans = Q.t(this.mySecret);
+    DetNet.send({ t: "answer", q: i, a: ans });
+    this.log(`${esc(DetNet.oppName)}: <b>${esc(Q.q)}</b> → o Twojej piosence: <b class="${ans ? "yes" : "no"}">${ans ? "TAK" : "NIE"}</b>`, "cpu");
+    this.turn = "me";
+    this.render();
+  },
+  gotAnswer(i, ans) {
+    if (this.turn !== "wait" || this.over) return;
+    this.applyAnswer(i, !!ans);
+    DetNet.send({ t: "left", n: this.myLeft.size });
+    this.turn = "opp";
+    this.render();
   },
   cpuTurn() {
     if (this.over) return;
@@ -466,7 +529,7 @@ const Detektyw = {
     if (left.length === 1) {
       const g = left[0];
       this.log(`Komputer strzela: <b>„${esc(g.title)}”</b>…`, "cpu");
-      this.end(g === this.mySecret ? "cpu" : "me", g === this.mySecret ? "Komputer odgadł Twoją piosenkę." : "Komputer strzelił źle!");
+      this.end(g === this.mySecret ? "opp" : "me", g === this.mySecret ? "Komputer odgadł Twoją piosenkę." : "Komputer strzelił źle!");
       return;
     }
     const options = QUESTIONS.map((Q, i) => ({ i, Q, yes: left.filter(s => Q.t(s)).length }))
@@ -474,7 +537,7 @@ const Detektyw = {
     if (!options.length) {         // nie ma już rozróżniającego pytania – zgaduje losowo
       const g = left[Math.floor(Math.random() * left.length)];
       this.log(`Komputer strzela na ślepo: <b>„${esc(g.title)}”</b>…`, "cpu");
-      this.end(g === this.mySecret ? "cpu" : "me", g === this.mySecret ? "Komputer miał szczęście." : "Komputer strzelił źle!");
+      this.end(g === this.mySecret ? "opp" : "me", g === this.mySecret ? "Komputer miał szczęście." : "Komputer strzelił źle!");
       return;
     }
     let o;
@@ -494,42 +557,68 @@ const Detektyw = {
   },
   confirmGuess() {
     const s = this.pending;
+    if (!s) return;
     this.pending = null;
     this.log(`Ty strzelasz: <b>„${esc(s.title)}”</b>…`, "me");
-    this.end(s === this.cpuSecret ? "me" : "cpu", s === this.cpuSecret ? "Trafiony strzał – to ukryta piosenka komputera!" : "To nie ta piosenka.");
+    if (this.mode === "online") {
+      this.turn = "wait";
+      DetNet.send({ t: "guess", i: this.board.indexOf(s) });
+      this.render();
+      return;
+    }
+    this.end(s === this.cpuSecret ? "me" : "opp", s === this.cpuSecret ? "Trafiony strzał – to ukryta piosenka komputera!" : "To nie ta piosenka.");
+  },
+  // przeciwnik online strzela w moją piosenkę
+  oppGuessed(i) {
+    const s = this.board[i];
+    if (!s || this.over) return;
+    const correct = s === this.mySecret;
+    DetNet.send({ t: "result", correct, secret: this.board.indexOf(this.mySecret) });
+    this.log(`${esc(DetNet.oppName)} strzela: <b>„${esc(s.title)}”</b>…`, "cpu");
+    this.end(correct ? "opp" : "me", correct ? "Twoja piosenka została odgadnięta." : `Pudło! ${DetNet.oppName} strzela w złą piosenkę.`);
+  },
+  gotResult(correct, secretIdx) {
+    if (this.over) return;
+    this.oppSecret = this.board[secretIdx] || null;
+    DetNet.send({ t: "reveal", secret: this.board.indexOf(this.mySecret) });
+    this.end(correct ? "me" : "opp", correct ? "Trafiony strzał!" : "To nie ta piosenka.");
   },
   end(winner, why) {
     this.over = true;
+    this.turn = "over";
     stopClip();
-    const st = store.get("scm-det-stats", { won: 0, lost: 0 });
+    const key = this.mode === "online" ? "scm-det-online-stats" : "scm-det-stats";
+    const st = store.get(key, { won: 0, lost: 0 });
     winner === "me" ? st.won++ : st.lost++;
-    store.set("scm-det-stats", st);
+    store.set(key, st);
     this.result = { winner, why, st };
-    track("koniec", { gra: "detektyw", wygrana: winner === "me", komputer: this.smart ? "trudny" : "latwy" });
-    this.log(winner === "me" ? `🏆 Wygrywasz! ${esc(why)}` : `🤖 Wygrywa komputer. ${esc(why)}`, "sys");
+    this.log(winner === "me" ? `🏆 Wygrywasz! ${esc(why)}` : `Wygrywa ${esc(this.opp())}. ${esc(why)}`, "sys");
+    track("koniec", { gra: "detektyw", tryb: this.mode === "online" ? "online" : "komputer", wygrana: winner === "me", komputer: this.smart ? "trudny" : "latwy" });
     this.render();
   },
   render() {
-    // Twoja ukryta piosenka
+    if (!this.board.length || !this.mySecret) return;
+    const online = this.mode === "online";
+    const oppSecret = online ? this.oppSecret : this.cpuSecret;
     const my = $("detMine");
     my.innerHTML = "";
     my.appendChild(clipButton(this.mySecret));
-    my.appendChild(el("div", "", `<small>Twoja ukryta piosenka (komputer jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span>`));
-    $("detCpu").textContent = this.over ? "" : `🤖 Komputerowi zostało ${this.cpuLeft.size} kandydatów · Tobie ${this.myLeft.size}`;
-    // plansza
+    my.appendChild(el("div", "", `<small>Twoja ukryta piosenka (${esc(this.opp())} jej szuka)</small><b>${esc(this.mySecret.title)}</b> <span>${esc(this.mySecret.artist)} · ${this.mySecret.year}</span>`));
+    $("detCpu").textContent = this.over ? "" : online
+      ? `👥 ${DetNet.oppName}: zostało ${this.oppLeft} kandydatów · Tobie ${this.myLeft.size}`
+      : `🤖 Komputerowi zostało ${this.cpuLeft.size} kandydatów · Tobie ${this.myLeft.size}`;
     const grid = $("detGrid");
     grid.innerHTML = "";
     grid.classList.toggle("hard", this.hard);
     this.board.forEach((s, i) => {
       const out = !this.myLeft.has(s);
-      const reveal = this.over && s === this.cpuSecret;
+      const reveal = this.over && s === oppSecret;
       const tile = el("div", "det-tile" + (out ? " out" : "") + (reveal ? " secret" : "") + (this.pending === s ? " sel" : ""));
       tile.appendChild(clipButton(s));
       tile.appendChild(el("div", "det-text", this.hard && !this.over ? `🎧 ${i + 1}` : `<b>${esc(s.title)}</b><small>${esc(s.artist)}${this.over ? " · " + s.year : ""}</small>`));
       tile.onclick = () => { if (!out) this.guess(s); };
       grid.appendChild(tile);
     });
-    // pytania
     const qs = $("detQuestions");
     qs.innerHTML = "";
     QUESTIONS.forEach((Q, i) => {
@@ -538,20 +627,179 @@ const Detektyw = {
       b.onclick = () => this.ask(i);
       qs.appendChild(b);
     });
-    $("detTurn").textContent = this.over ? "" : this.turn === "me" ? "Twoja kolej: zadaj pytanie albo kliknij piosenkę, żeby strzelić." : "🤖 Komputer myśli…";
+    $("detTurn").textContent = this.over ? "" : this.turn === "me" ? "Twoja kolej: zadaj pytanie albo kliknij piosenkę, żeby strzelić."
+      : this.turn === "wait" ? `⏳ Czekam na odpowiedź od ${this.opp()}…`
+      : online ? `⏳ Kolej: ${DetNet.oppName} – za chwilę zada pytanie.` : "🤖 Komputer myśli…";
     $("detConfirm").hidden = !this.pending;
     if (this.pending) $("detConfirmText").textContent = `Strzelasz: „${this.pending.title}”? Pomyłka = przegrana.`;
     $("detResult").hidden = !this.over;
     if (this.over && this.result) {
-      $("detResultTitle").textContent = this.result.winner === "me" ? "🏆 Wygrywasz!" : "🤖 Wygrywa komputer";
-      $("detResultInfo").textContent = `${this.result.why} Ukryta piosenka komputera: „${this.cpuSecret.title}” – ${this.cpuSecret.artist} (${this.cpuSecret.year}). Bilans: ${this.result.st.won} wygranych, ${this.result.st.lost} przegranych.`;
+      $("detResultTitle").textContent = this.result.winner === "me" ? "🏆 Wygrywasz!" : `Wygrywa ${this.opp()}`;
+      $("detResultInfo").textContent = `${this.result.why} ` +
+        (oppSecret ? `Ukryta piosenka (${this.opp()}): „${oppSecret.title}” – ${oppSecret.artist} (${oppSecret.year}). ` : "") +
+        `Bilans${online ? " online" : ""}: ${this.result.st.won} wygranych, ${this.result.st.lost} przegranych.`;
+      $("detAgain").textContent = online ? "🔁 Rewanż" : "Zagraj jeszcze raz";
     }
   },
 };
 
+/* ---- Połączenie dla 2 graczy (ten sam darmowy serwer co pojedynki w „Starsza czy młodsza?”) ---- */
+const DetNet = {
+  client: null, code: "", idx: 0, host: false, oppId: null, oppName: "", oppSeen: 0, round: 0, playing: false, pinger: null,
+
+  view(v) {
+    for (const id of ["doMenu", "doJoin", "doConn", "doWait", "doBar"]) $(id).hidden = id !== v;
+    Detektyw.syncModeUi();
+  },
+  link() { return location.origin + location.pathname + "#detektyw-" + this.code + "-" + this.idx; },
+  showJoin(code, broker) {
+    $("doJoinCode").textContent = code;
+    $("doJoinBtn").dataset.code = code; $("doJoinBtn").dataset.broker = broker || 0;
+    $("doName2").value = playerName;
+    this.view("doJoin");
+  },
+  async connect(code, brokerIdx, asHost) {
+    this.view("doConn");
+    $("doConnMsg").textContent = "Łączę się z serwerem gry…";
+    try {
+      await ensureMqtt();
+      const order = brokerIdx === undefined ? BROKERS.map((_, i) => i) : [brokerIdx];
+      let client = null, idx = 0;
+      for (const i of order) { try { client = await connectBroker(i, "det-" + code); idx = i; break; } catch (e) {} }
+      if (!client) throw new Error("Nie udało się połączyć z serwerem gry. Sprawdź internet i spróbuj ponownie.");
+      Object.assign(this, { client, code, idx, host: asHost, oppId: null, oppName: "", round: 0, playing: false });
+      const topic = TOPIC("det-" + code);
+      client.subscribe(topic);
+      client.on("message", (_, buf) => { let m; try { m = JSON.parse(buf.toString()); } catch (e) { return; } this.onMessage(m); });
+      client.on("connect", () => client.subscribe(topic));
+      this.pinger = setInterval(() => this.tick(), 3000);
+      this.send({ t: "hello", name: playerName, host: asHost });
+      history.replaceState(null, "", "#detektyw-" + code + "-" + idx);
+      if (asHost) {
+        $("doCode").textContent = code;
+        $("doLink").value = this.link();
+        $("doShareStatus").textContent = "";
+        this.view("doWait");
+      } else {
+        $("doConnMsg").textContent = "Połączono – czekam na gospodarza gry…";
+        this.joinTimeout = setTimeout(() => { if (!this.oppId) $("doConnMsg").textContent = "Gospodarz nie odpowiada. Sprawdź kod albo poproś o nowy link."; }, 8000);
+      }
+    } catch (e) {
+      $("doConnMsg").textContent = "❌ " + e.message;
+    }
+  },
+  send(m) { if (this.client && this.client.connected) this.client.publish(TOPIC("det-" + this.code), JSON.stringify({ ...m, id: myId, to: this.oppId })); },
+  tick() {
+    if (!this.client) return;
+    this.send({ t: "ping", name: playerName });
+    if (this.oppId && Date.now() - this.oppSeen > 12000) this.oppGone();
+  },
+  oppGone() {
+    if (!this.oppId) return;
+    const name = this.oppName;
+    this.oppId = null;
+    this.playing = false;
+    if (!Detektyw.over && Detektyw.board.length) Detektyw.log(`⚠️ Utracono połączenie z: ${esc(name)}.`, "sys");
+    if (this.host) { $("doCode").textContent = this.code; $("doLink").value = this.link(); this.view("doWait"); $("doShareStatus").textContent = `${name} nie jest już w grze – możesz zaprosić kogoś innego.`; }
+    else { $("doConnMsg").textContent = `Gra z: ${name} została zakończona.`; this.view("doConn"); }
+  },
+  onMessage(m) {
+    if (!m || !m.id || m.id === myId) return;
+    if (m.to && m.to !== myId) return;                               // wiadomość do kogoś innego
+    if (this.oppId && m.id !== this.oppId) {
+      if (m.t === "hello" && this.host) this.client.publish(TOPIC("det-" + this.code), JSON.stringify({ t: "full", id: myId, to: m.id }));
+      return;
+    }
+    if (m.t === "full" && m.to === myId && !this.oppId) { $("doConnMsg").textContent = "Ta gra ma już dwóch graczy."; this.view("doConn"); return; }
+    if (m.t === "bye") { if (m.id === this.oppId) this.oppGone(); return; }
+    if (!this.oppId) {
+      // pierwszy kontakt: gospodarz przyjmuje gościa i rozdaje planszę
+      if (this.host && m.t === "hello" && !m.host) { this.accept(m); this.newRound(); }
+      else if (!this.host && (m.t === "setup" || (m.t === "hello" && m.host))) { this.accept(m); }
+      if (!this.oppId) return;
+    }
+    this.oppSeen = Date.now();
+    if (typeof m.name === "string" && m.name) this.oppName = m.name.slice(0, 20);
+    switch (m.t) {
+      case "setup": if (!this.host && m.round > this.round) this.beginRound(m.round, m.seed, !m.hostStarts); break;
+      case "rematch": if (this.host) this.newRound(); break;
+      case "ask": Detektyw.answerOpp(m.q); break;
+      case "answer": Detektyw.gotAnswer(m.q, m.a); break;
+      case "left": Detektyw.oppLeft = m.n; Detektyw.render(); break;
+      case "guess": Detektyw.oppGuessed(m.i); break;
+      case "result": Detektyw.gotResult(m.correct, m.secret); break;
+      case "reveal": Detektyw.oppSecret = Detektyw.board[m.secret] || null; Detektyw.render(); break;
+    }
+  },
+  accept(m) {
+    clearTimeout(this.joinTimeout);
+    this.oppId = m.id; this.oppSeen = Date.now();
+    this.oppName = (m.name || "Przeciwnik").slice(0, 20);
+    this.send({ t: "hello", name: playerName, host: this.host });
+  },
+  newRound() {
+    this.round++;
+    const seedNum = (Math.random() * 2 ** 32) >>> 0;
+    const hostStarts = this.round % 2 === 1;        // na zmianę zaczyna gospodarz i gość
+    this.send({ t: "setup", round: this.round, seed: seedNum, hostStarts, name: playerName });
+    this.beginRound(this.round, seedNum, hostStarts);
+  },
+  beginRound(round, seedNum, iStart) {
+    this.round = round;
+    this.playing = true;
+    $("doVs").textContent = `👥 Grasz z: ${this.oppName}`;
+    this.view("doBar");
+    Detektyw.startOnline(seedNum, iStart);
+  },
+  rematch() { if (this.host) this.newRound(); else { this.send({ t: "rematch" }); $("detResultInfo").textContent = "Wysłano prośbę o rewanż…"; } },
+  leave(silent) {
+    clearInterval(this.pinger); clearTimeout(this.joinTimeout);
+    if (this.client) { try { this.send({ t: "bye" }); this.client.end(); } catch (e) {} }
+    Object.assign(this, { client: null, oppId: null, playing: false, round: 0 });
+    if (location.hash.startsWith("#detektyw-")) history.replaceState(null, "", "#detektyw");
+    if (!silent) { Detektyw.board = []; this.view("doMenu"); }
+  },
+};
+window.addEventListener("pagehide", () => { if (DetNet.client) try { DetNet.send({ t: "bye" }); } catch (e) {} });
+
+function detNeedName(input) {
+  const n = input.value.trim();
+  if (!n) { input.focus(); input.placeholder = "Wpisz imię, żeby przeciwnik wiedział, z kim gra"; return false; }
+  setName(n); return true;
+}
+document.querySelectorAll("#detModeSeg button").forEach(b => b.onclick = () => Detektyw.setMode(b.dataset.m));
+$("doCreate").onclick = () => {
+  if (!detNeedName($("doName1"))) return;
+  let code = ""; for (let i = 0; i < 4; i++) code += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
+  track("pokoj", { gra: "detektyw", akcja: "utworz" });
+  DetNet.connect(code, undefined, true);
+};
+$("doJoinCodeBtn").onclick = () => {
+  if (!detNeedName($("doName1"))) return;
+  const code = $("doCodeInput").value.trim().toUpperCase();
+  if (!/^[A-Z]{4}$/.test(code)) { $("doCodeInput").focus(); return; }
+  track("pokoj", { gra: "detektyw", akcja: "dolacz kodem" });
+  DetNet.connect(code, 0, false);
+};
+$("doJoinBtn").onclick = () => {
+  if (!detNeedName($("doName2"))) return;
+  track("pokoj", { gra: "detektyw", akcja: "dolacz z linku" });
+  DetNet.connect($("doJoinBtn").dataset.code, +$("doJoinBtn").dataset.broker || 0, false);
+};
+$("doCancel").onclick = $("doConnCancel").onclick = $("doJoinCancel").onclick = $("doLeave").onclick = () => DetNet.leave(false);
+$("doShare").onclick = async () => {
+  const text = `🕵️ Zagraj ze mną w „Muzycznego detektywa” – kod gry ${DetNet.code}:`;
+  if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+    try { await navigator.share({ title: "Muzyczny detektyw", text, url: DetNet.link() }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(text + " " + DetNet.link()); $("doShareStatus").textContent = "✔ Skopiowano link – wyślij go znajomemu."; }
+  catch (e) { $("doLink").select(); $("doShareStatus").textContent = "Skopiuj link z pola powyżej."; }
+};
+
 $("detYes").onclick = () => Detektyw.confirmGuess();
 $("detNo").onclick = () => { Detektyw.pending = null; Detektyw.render(); };
-$("detNew").onclick = $("detAgain").onclick = () => Detektyw.start();
+$("detNew").onclick = () => Detektyw.mode === "online" ? DetNet.rematch() : Detektyw.start();
+$("detAgain").onclick = () => Detektyw.mode === "online" ? DetNet.rematch() : Detektyw.start();
 $("detHard").onchange = () => { Detektyw.hard = $("detHard").checked; store.set("scm-det-hard", Detektyw.hard); Detektyw.render(); };
 $("detSmart").onchange = () => { Detektyw.smart = $("detSmart").checked; store.set("scm-det-smart", Detektyw.smart); };
 
@@ -683,7 +931,9 @@ const GAMES = { czworki: Czworki, detektyw: Detektyw, kod: Kod };
 
 (function route() {
   const h = location.hash.slice(1);
-  if (GAMES[h]) openScreen(h);
+  const det = h.match(/^detektyw-([A-Z]{4})-(\d)$/i);
+  if (det) openScreen("detektyw", det[1].toUpperCase(), Math.min(+det[2] || 0, BROKERS.length - 1));
+  else if (GAMES[h]) openScreen(h);
   else if (!h) showHub();
   // pozostałe adresy (#w-…, #pokoj-…, #rap, #diagnostyka…) obsługuje „Starsza czy młodsza?”
 })();

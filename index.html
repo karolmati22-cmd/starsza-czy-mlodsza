@@ -436,28 +436,66 @@
 <section class="screen" id="scrDetektyw" hidden>
   <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🕵️ Muzyczny detektyw</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
-    <p class="scr-help">Ty i komputer macie po jednej ukrytej piosence z planszy. Na zmianę zadajecie pytania „tak / nie”, a odpowiedzi skreślają piosenki. Kliknij piosenkę, żeby strzelić – pomyłka oznacza przegraną.</p>
-    <div class="det-top"><div class="det-mine" id="detMine"></div><div class="det-cpu" id="detCpu"></div></div>
-    <div class="det-confirm" id="detConfirm" hidden>
-      <span id="detConfirmText"></span>
-      <div><button class="btn" id="detYes">🎯 Strzelam!</button> <button class="btn secondary" id="detNo">Anuluj</button></div>
+    <div class="seg det-modes" id="detModeSeg">
+      <button data-m="cpu" class="on">🤖 Z komputerem</button>
+      <button data-m="online">👥 Ze znajomym online</button>
     </div>
-    <div class="scr-result" id="detResult" hidden>
-      <h3 id="detResultTitle"></h3><p id="detResultInfo"></p>
-      <button class="btn" id="detAgain">Zagraj jeszcze raz</button>
-    </div>
-    <div class="det-layout">
-      <div class="det-grid" id="detGrid"></div>
-      <div class="det-side">
-        <p class="det-turn" id="detTurn"></p>
-        <div class="det-questions" id="detQuestions"></div>
-        <ol class="det-log" id="detLog"></ol>
+    <p class="scr-help">Każdy gracz ma jedną ukrytą piosenkę z planszy. Na zmianę zadajecie pytania „tak / nie”, a odpowiedzi skreślają piosenki. Kliknij piosenkę, żeby strzelić – pomyłka oznacza przegraną.</p>
+
+    <div class="det-online" id="detOnline" hidden>
+      <div id="doMenu">
+        <label class="field">Twoje imię<input id="doName1" maxlength="20" placeholder="np. Karol"></label>
+        <button class="btn" id="doCreate">➕ Utwórz grę i zaproś znajomego</button>
+        <p class="or">albo dołącz kodem gry</p>
+        <div class="code-row"><input id="doCodeInput" maxlength="4" placeholder="KOD" autocapitalize="characters"><button class="btn secondary" id="doJoinCodeBtn">Dołącz</button></div>
+      </div>
+      <div id="doJoin" hidden>
+        <p>Dołączasz do gry <b id="doJoinCode"></b>.</p>
+        <label class="field">Twoje imię<input id="doName2" maxlength="20" placeholder="np. Ola"></label>
+        <button class="btn" id="doJoinBtn">Dołącz do gry</button>
+        <button class="btn secondary" id="doJoinCancel">Anuluj</button>
+      </div>
+      <div id="doConn" hidden>
+        <p id="doConnMsg">Łączę się…</p>
+        <button class="btn secondary" id="doConnCancel">Anuluj</button>
+      </div>
+      <div id="doWait" hidden>
+        <p>Kod gry: <b class="do-code" id="doCode"></b></p>
+        <p>Wyślij znajomemu link – gra zacznie się, gdy dołączy.</p>
+        <div class="invite"><input id="doLink" readonly><button class="btn secondary" id="doShare">📤 Zaproś</button></div>
+        <p class="lv-status" id="doShareStatus"></p>
+        <p class="do-waiting">⏳ Czekam na przeciwnika…</p>
+        <button class="btn secondary" id="doCancel">Anuluj</button>
+      </div>
+      <div id="doBar" hidden class="do-bar">
+        <span id="doVs"></span>
+        <button class="btn secondary" id="doLeave">Wyjdź z gry</button>
       </div>
     </div>
-    <div class="scr-opts">
-      <button class="btn secondary" id="detNew">🔄 Nowa gra</button>
-      <label class="toggle"><input type="checkbox" id="detSmart"> 🤖 Trudny komputer</label>
-      <label class="toggle"><input type="checkbox" id="detHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
+
+    <div id="detGame">
+      <div class="det-top"><div class="det-mine" id="detMine"></div><div class="det-cpu" id="detCpu"></div></div>
+      <div class="det-confirm" id="detConfirm" hidden>
+        <span id="detConfirmText"></span>
+        <div><button class="btn" id="detYes">🎯 Strzelam!</button> <button class="btn secondary" id="detNo">Anuluj</button></div>
+      </div>
+      <div class="scr-result" id="detResult" hidden>
+        <h3 id="detResultTitle"></h3><p id="detResultInfo"></p>
+        <button class="btn" id="detAgain">Zagraj jeszcze raz</button>
+      </div>
+      <div class="det-layout">
+        <div class="det-grid" id="detGrid"></div>
+        <div class="det-side">
+          <p class="det-turn" id="detTurn"></p>
+          <div class="det-questions" id="detQuestions"></div>
+          <ol class="det-log" id="detLog"></ol>
+        </div>
+      </div>
+      <div class="scr-opts">
+        <button class="btn secondary" id="detNew">🔄 Nowa gra</button>
+        <label class="toggle" id="detSmartWrap"><input type="checkbox" id="detSmart"> 🤖 Trudny komputer</label>
+        <label class="toggle"><input type="checkbox" id="detHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
+      </div>
     </div>
   </div>
 </section>
