@@ -488,6 +488,9 @@ function songTraits(s) {
 for (const s of ALL_POLISH) s.traits = songTraits(s);
 const DET_POOL = ALL_POLISH.filter(s => s.traits);
 
+const Q_SHORT = ["Kobieta?", "Mężczyzna?", "Zespół?", "Duet / gość?", "Rap?", "Przed 1980?", "Lata 80.?", "Lata 90.?", "Przed 2000?",
+  "2000–2009?", "2010–2015?", "Po 2015?", "Po 2020?", "Rok parzysty?"];
+const Q_GROUPS = [["Wokal", [0, 1]], ["Skład", [2, 3]], ["Gatunek", [4]], ["Epoka", [5, 6, 7, 8, 9, 10, 11, 12]], ["Inne", [13]]];
 const QUESTIONS = [
   { q: "Śpiewa kobieta?", t: s => s.traits.female },
   { q: "Śpiewa mężczyzna?", t: s => s.traits.male },
@@ -581,6 +584,7 @@ function parseQuestion(text, board) {
   return null;
 }
 
+const odm = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? few : many;
 const pytan = n => n === 1 ? "pytanie" : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "pytania" : "pytań";
 
 // 24 piosenki: mieszanka epok i wykonawców (bez powtórek wykonawcy). To samo ziarno = ta sama plansza.
@@ -828,11 +832,12 @@ const Detektyw = {
       info.appendChild(amLink(this.mySecret));
       my.appendChild(info);
     }
-    $("detCpu").textContent = this.over ? "" : solo
-      ? `❓ Pytania: ${this.questions} · zostało ${this.myLeft.size} z ${this.board.length} piosenek`
-      : online
-      ? `👥 ${DetNet.oppName}: zostało ${this.oppLeft} kandydatów · Tobie ${this.myLeft.size}`
-      : `🤖 Komputerowi zostało ${this.cpuLeft.size} kandydatów · Tobie ${this.myLeft.size}`;
+    const n = this.board.length, bar = (label, left, cls) =>
+      `<div class="ds-line ${cls}"><span>${esc(label)}</span><b>${left}<small>/${n}</small></b></div><div class="ds-bar ${cls}"><i style="width:${(left / n * 100).toFixed(1)}%"></i></div>`;
+    $("detCpu").innerHTML = solo
+      ? `<div class="ds-big"><div><b>${this.questions}</b><span>${pytan(this.questions)}</span></div><div><b>${this.myLeft.size}</b><span>pozostało z ${n}</span></div></div>` +
+        `<div class="ds-bar me"><i style="width:${(this.myLeft.size / n * 100).toFixed(1)}%"></i></div>`
+      : bar("Ty – zostało", this.myLeft.size, "me") + bar((online ? DetNet.oppName : "Komputer") + " – zostało", online ? this.oppLeft : this.cpuLeft.size, "opp");
     const grid = $("detGrid");
     grid.innerHTML = "";
     grid.classList.toggle("hard", this.hard);
@@ -840,7 +845,12 @@ const Detektyw = {
       const out = !this.myLeft.has(s);
       const reveal = this.over && s === oppSecret;
       const tile = el("div", "det-tile" + (out ? " out" : "") + (reveal ? " secret" : "") + (this.pending === s ? " sel" : ""));
-      tile.appendChild(clipButton(s));
+      tile.style.setProperty("--h", (s.hue ?? i * 37) % 360);
+      const cover = el("div", "det-cover");
+      cover.appendChild(clipButton(s));
+      tile.appendChild(cover);
+      if (out && !reveal) tile.appendChild(el("span", "det-x", "✕"));
+      if (reveal) tile.appendChild(el("span", "det-badge", "🎯"));
       const txt = el("div", "det-text", this.hard && !this.over ? `🎧 ${i + 1}` : `<b>${esc(s.title)}</b><small>${esc(s.artist)}${this.over ? " · " + s.year : ""}</small>`);
       if (this.over) txt.appendChild(amLink(s));
       tile.appendChild(txt);
@@ -849,12 +859,18 @@ const Detektyw = {
     });
     const qs = $("detQuestions");
     qs.innerHTML = "";
-    QUESTIONS.forEach((Q, i) => {
-      const b = el("button", "det-q", esc(Q.q));
-      b.disabled = this.over || this.turn !== "me" || this.asked.has(i);
-      b.onclick = () => this.ask(i);
-      qs.appendChild(b);
-    });
+    for (const [name, idxs] of Q_GROUPS) {
+      const row = el("div", "det-qgroup");
+      row.appendChild(el("span", "det-qlabel", name));
+      for (const i of idxs) {
+        const b = el("button", "det-q" + (this.asked.has(i) ? " asked" : ""), esc(Q_SHORT[i]));
+        b.title = QUESTIONS[i].q;
+        b.disabled = this.over || this.turn !== "me" || this.asked.has(i);
+        b.onclick = () => this.ask(i);
+        row.appendChild(b);
+      }
+      qs.appendChild(row);
+    }
     $("detInput").disabled = $("detAskBtn").disabled = this.over || this.turn !== "me";
     $("detTurn").textContent = this.over ? "" : this.turn === "me"
       ? (solo ? "Wpisz pytanie albo wybierz gotowe. Gdy wiesz – kliknij piosenkę." : "Twoja kolej: zadaj pytanie albo kliknij piosenkę, żeby strzelić.")
@@ -872,7 +888,8 @@ const Detektyw = {
       $("detResultTitle").textContent = this.result.winner === "me" ? "🏆 Wygrywasz!" : `Wygrywa ${this.opp()}`;
       $("detResultInfo").textContent = `${this.result.why} ` +
         (oppSecret ? `Ukryta piosenka (${this.opp()}): „${oppSecret.title}” – ${oppSecret.artist} (${oppSecret.year}). ` : "") +
-        `Bilans${online ? " online" : ""}: ${this.result.st.won} wygranych, ${this.result.st.lost} przegranych.`;
+        `Bilans${online ? " online" : ""}: ${this.result.st.won} ${odm(this.result.st.won, "wygrana", "wygrane", "wygranych")}, ` +
+        `${this.result.st.lost} ${odm(this.result.st.lost, "przegrana", "przegrane", "przegranych")}.`;
       $("detAgain").textContent = online ? "🔁 Rewanż" : "Zagraj jeszcze raz";
     }
   },

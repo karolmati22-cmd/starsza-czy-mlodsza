@@ -6,7 +6,7 @@
 <title>Muzyczne gry – Starsza czy młodsza? i inne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="gry.css?v=263e86c0">
+<link rel="stylesheet" href="gry.css?v=b9fd7c9d">
 <!-- Statystyki odwiedzin (Umami, bez ciasteczek) – liczone tylko na opublikowanej stronie -->
 <script defer src="https://cloud.umami.is/script.js" data-website-id="eb493614-1fdc-40a0-8b46-41031d410130" data-domains="karolmati22-cmd.github.io" data-exclude-hash="true"></script>
 <style>
@@ -554,7 +554,7 @@
     </div>
 
     <div id="detGame">
-      <div class="det-top"><div class="det-mine" id="detMine"></div><div class="det-cpu" id="detCpu"></div></div>
+      <div class="det-top"><div class="det-mine" id="detMine"></div></div>
       <div class="det-confirm" id="detConfirm" hidden>
         <span id="detConfirmText"></span>
         <div><button class="btn" id="detYes">🎯 Strzelam!</button> <button class="btn secondary" id="detNo">Anuluj</button></div>
@@ -566,12 +566,13 @@
       <div class="det-layout">
         <div class="det-grid" id="detGrid"></div>
         <div class="det-side">
+          <div class="det-status" id="detCpu"></div>
           <p class="det-turn" id="detTurn"></p>
           <div class="det-ask">
             <input id="detInput" maxlength="120" placeholder="np. Czy to z lat 90.? Czy śpiewa kobieta?" autocomplete="off">
             <button class="btn" id="detAskBtn">Zapytaj</button>
           </div>
-          <p class="det-qhint">albo wybierz gotowe pytanie:</p>
+          <p class="det-qhint">…albo kliknij gotowe pytanie:</p>
           <div class="det-questions" id="detQuestions"></div>
           <ol class="det-log" id="detLog"></ol>
         </div>
@@ -2223,6 +2224,6 @@ $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
-<script src="gry.js?v=ce5e29a1"></script>
+<script src="gry.js?v=d07190e4"></script>
 </body>
 </html>
