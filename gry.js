@@ -102,8 +102,8 @@ let currentScreen = null;
 
 function hideAllScreens() {
   stopClip();
-  for (const id of Object.values(SCREENS)) $(id).hidden = true;
-  $("scrHome").hidden = true;
+  for (const id of Object.values(SCREENS)) if ($(id)) $(id).hidden = true;
+  if ($("scrHome")) $("scrHome").hidden = true;
   currentScreen = null;
 }
 function showHub() {
@@ -111,6 +111,7 @@ function showHub() {
   hideAllScreens();
   stopTimer(); stopAudio();
   if (location.hash) history.replaceState(null, "", location.pathname);
+  if (!$("scrHome")) { openStarsza(); return; }
   document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show"));
   renderHome();
   $("scrHome").hidden = false;
@@ -143,9 +144,11 @@ function renderHome() {
   if (kodLast && kodLast.date === today) $("dailyKod").textContent = kodLast.won ? `✔ Złamany dzisiaj w ${kodLast.tries}/${KOD_TRIES}` : "Dzisiaj się nie udało – jutro nowy kod";
   else { const d = store.get("scm-kod-day", null); $("dailyKod").textContent = d && d.date === today && d.rows.length ? "⏳ W trakcie – dokończ kod" : "Czeka na Ciebie – ten sam dla wszystkich graczy"; }
 }
-$("homeFriendsJump").onclick = () => $("homeFriends").scrollIntoView({ behavior: "smooth" });
-$("homeLiveStarsza").onclick = () => { track("gra", { gra: "starsza", z: "strona glowna - pojedynek" }); openStarsza(); $("friendsBtn").click(); };
-$("homeLiveDet").onclick = () => { track("gra", { gra: "detektyw", z: "strona glowna - we dwoje" }); openScreen("detektyw"); Detektyw.setMode("online"); };
+if ($("scrHome")) {     // (gdyby przeglądarka podała starszą wersję strony, strony głównej po prostu nie ma)
+  $("homeFriendsJump").onclick = () => $("homeFriends").scrollIntoView({ behavior: "smooth" });
+  $("homeLiveStarsza").onclick = () => { track("gra", { gra: "starsza", z: "strona glowna - pojedynek" }); openStarsza(); $("friendsBtn").click(); };
+  $("homeLiveDet").onclick = () => { track("gra", { gra: "detektyw", z: "strona glowna - we dwoje" }); openScreen("detektyw"); Detektyw.setMode("online"); };
+}
 function openScreen(key, ...args) {
   hideAllScreens();
   stopTimer(); stopAudio();
