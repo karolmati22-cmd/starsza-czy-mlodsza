@@ -1128,56 +1128,84 @@ const Kod = {
   },
   pegs(h) { return "●".repeat(h.black) + "○".repeat(h.white) + "·".repeat(4 - h.black - h.white); },
   render() {
+    const cover = (s, extra) => {
+      const c = el("div", "kod-cover" + (extra || ""));
+      c.style.setProperty("--h", (s.hue ?? 200) % 360);
+      return c;
+    };
     // pula 8 piosenek
     const pool = $("kodPool");
     pool.innerHTML = "";
     for (const s of this.pool8) {
-      const chip = el("div", "kod-chip" + (this.row.includes(s) ? " used" : ""));
-      chip.appendChild(clipButton(s));
+      const pos = this.row.indexOf(s);
+      const inCode = this.over && this.code.includes(s);
+      const chip = el("div", "kod-chip" + (pos >= 0 ? " used" : "") + (inCode ? " in-code" : ""));
+      const c = cover(s);
+      c.appendChild(clipButton(s));
+      chip.appendChild(c);
       chip.appendChild(el("div", "kod-text", `<b>${esc(s.title)}</b><small>${esc(s.artist)}${this.over ? " · " + s.year : ""}</small>`));
+      if (pos >= 0) chip.appendChild(el("span", "kod-pos", String(pos + 1)));
       chip.onclick = () => this.add(s);
       pool.appendChild(chip);
     }
-    // bieżący wiersz
+    // bieżący zestaw – oś czasu
     const slots = $("kodSlots");
     slots.innerHTML = "";
     for (let i = 0; i < 4; i++) {
       const s = this.row[i];
-      const slot = el("div", "kod-slot" + (s ? " filled" : ""), s ? `<b>${esc(s.title)}</b>` : `<span>${i === 0 ? "najstarsza" : i === 3 ? "najmłodsza" : i + 1}</span>`);
-      if (s) slot.onclick = () => this.removeAt(i);
+      const slot = el("div", "kod-slot" + (s ? " filled" : "") + (!s && i === this.row.length ? " next" : ""));
+      slot.appendChild(el("span", "kod-num", String(i + 1)));
+      if (s) {
+        slot.style.setProperty("--h", (s.hue ?? 200) % 360);
+        slot.appendChild(el("span", "kod-slot-t", `<b>${esc(s.title)}</b><small>${esc(splitArtists(s)[0] || s.artist)}</small>`));
+        slot.appendChild(el("span", "kod-del", "✕"));
+        slot.onclick = () => this.removeAt(i);
+        slot.title = "Kliknij, żeby usunąć";
+      } else slot.appendChild(el("span", "kod-slot-t", `<small>${i === this.row.length ? "wybierz piosenkę" : "puste"}</small>`));
       slots.appendChild(slot);
     }
     $("kodCheck").disabled = this.row.length !== 4 || this.over;
     $("kodPlay").hidden = this.over;
+    // licznik prób
+    $("kodDots").innerHTML = Array.from({ length: KOD_TRIES }, (_, i) => {
+      const h = this.history[i];
+      const cls = h ? (h.black === 4 ? "win" : "used") : (i === this.history.length && !this.over ? "now" : "");
+      return `<i class="${cls}" title="Próba ${i + 1}"></i>`;
+    }).join("");
+    $("kodTries").textContent = this.over ? "" : `próba ${this.history.length + 1} z ${KOD_TRIES}`;
     // historia
+    $("kodHistBox").hidden = !this.history.length;
     const hist = $("kodHistory");
     hist.innerHTML = "";
-    this.history.forEach((h, n) => {
-      const li = el("li", "kod-h");
-      li.appendChild(el("span", "kod-n", n + 1 + "."));
-      if (this.colors) {
-        const row = el("span", "kod-row kod-colored");
-        h.row.forEach((s, i) => row.appendChild(el("span", "kod-mark m-" + h.marks[i], esc(s.title))));
-        li.appendChild(row);
-      } else {
-        li.appendChild(el("span", "kod-row", h.row.map(s => esc(s.title)).join(" → ")));
-        li.appendChild(el("span", "kod-pegs", this.pegs(h)));
-      }
+    [...this.history].reverse().forEach((h, k) => {
+      const n = this.history.length - k;
+      const li = el("li", "kod-h" + (h.black === 4 ? " win" : ""));
+      li.appendChild(el("span", "kod-n", String(n)));
+      const row = el("span", "kod-row" + (this.colors ? " kod-colored" : " kod-plain"));
+      h.row.forEach((s, i) => row.appendChild(el("span", "kod-mark " + (this.colors ? "m-" + h.marks[i] : "m-plain"), esc(s.title))));
+      li.appendChild(row);
+      if (!this.colors) li.appendChild(el("span", "kod-pegs", this.pegs(h)));
       hist.appendChild(li);
     });
-    $("kodTries").textContent = this.over ? "" : `Próba ${this.history.length + 1} z ${KOD_TRIES}`;
     $("kodLegend").innerHTML = this.colors
-      ? '<span class="kod-mark m-g">dobre miejsce</span><span class="kod-mark m-y">jest w kodzie, złe miejsce</span><span class="kod-mark m-x">nie ma w kodzie</span>'
-      : '<span><b>●</b> dobra piosenka na dobrym miejscu</span><span><b>○</b> jest w kodzie, ale na złym miejscu</span><span><b>·</b> nie ma jej w kodzie</span>' +
+      ? '<span class="kod-mark m-g">dobre miejsce</span><span class="kod-mark m-y">złe miejsce</span><span class="kod-mark m-x">nie ma w kodzie</span>'
+      : '<span><b>●</b> dobre miejsce</span><span><b>○</b> złe miejsce</span><span><b>·</b> nie ma w kodzie</span>' +
         '<span class="kod-note">Kropki nie mówią, której piosenki dotyczą – to trzeba wydedukować.</span>';
     const won = this.history.length && this.history[this.history.length - 1].black === 4;
     $("kodResult").hidden = !this.over;
     if (this.over) {
-      $("kodResultTitle").textContent = won ? `🔓 Złamane w ${this.history.length}. próbie!` : "🔒 Koniec prób";
-      $("kodSolution").innerHTML = this.code.map(s => `<li>${clipHtmlPlaceholder()}<b>${esc(s.title)}</b> – ${esc(s.artist)} <span class="yr">${s.year}</span></li>`).join("");
-      // przyciski odsłuchu przy rozwiązaniu
-      $("kodSolution").querySelectorAll(".clip-ph").forEach((ph, i) => ph.replaceWith(clipButton(this.code[i])));
-      $("kodSolution").querySelectorAll("li").forEach((li, i) => li.appendChild(amLink(this.code[i])));
+      $("kodResultTitle").textContent = won ? `🔓 Złamane w ${this.history.length}. próbie!` : "🔒 Koniec prób – oto kod";
+      $("kodSolution").innerHTML = "";
+      this.code.forEach((s, i) => {
+        const li = el("li", "");
+        li.appendChild(el("span", "kod-num", String(i + 1)));
+        const c = cover(s, " sm"); c.appendChild(clipButton(s)); li.appendChild(c);
+        const t = el("span", "kod-sol-t", `<b>${esc(s.title)}</b><small>${esc(s.artist)}</small>`);
+        t.appendChild(amLink(s));
+        li.appendChild(t);
+        li.appendChild(el("span", "yr", String(s.year)));
+        $("kodSolution").appendChild(li);
+      });
       this.won = won;
     }
   },

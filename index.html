@@ -6,7 +6,7 @@
 <title>Muzyczne gry – Starsza czy młodsza? i inne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="gry.css?v=b9fd7c9d">
+<link rel="stylesheet" href="gry.css?v=fafff753">
 <!-- Statystyki odwiedzin (Umami, bez ciasteczek) – liczone tylko na opublikowanej stronie -->
 <script defer src="https://cloud.umami.is/script.js" data-website-id="eb493614-1fdc-40a0-8b46-41031d410130" data-domains="karolmati22-cmd.github.io" data-exclude-hash="true"></script>
 <style>
@@ -592,23 +592,36 @@
   <div class="scr-body">
     <p class="scr-sub" id="kodSub"></p>
     <p class="scr-help">Komputer wybrał 4 z tych 8 piosenek i ułożył je od najstarszej do najmłodszej. Klikaj piosenki, żeby ułożyć swój zestaw, i kliknij „Sprawdź” – podpowiedzi pokażą, co już pasuje, a co trzeba zmienić. Masz 8 prób.</p>
-    <div class="kod-pool" id="kodPool"></div>
-    <div id="kodPlay">
-      <p class="kod-tries" id="kodTries"></p>
-      <div class="kod-slots" id="kodSlots"></div>
-      <div class="scr-actions"><button class="btn secondary" id="kodClear">Wyczyść</button><button class="btn" id="kodCheck">Sprawdź</button></div>
+    <div class="kod-board">
+      <div class="kod-head">
+        <h3 class="kod-h3">Piosenki do wyboru</h3>
+        <div class="kod-dots" id="kodDots" aria-label="Próby"></div>
+      </div>
+      <div class="kod-pool" id="kodPool"></div>
+
+      <div id="kodPlay">
+        <div class="kod-head"><h3 class="kod-h3">Twój zestaw</h3><span class="kod-tries" id="kodTries"></span></div>
+        <div class="kod-slots" id="kodSlots"></div>
+        <div class="kod-axis"><span>⟵ najstarsza</span><span>najmłodsza ⟶</span></div>
+        <div class="scr-actions"><button class="btn secondary" id="kodClear">Wyczyść</button><button class="btn" id="kodCheck">🔓 Sprawdź</button></div>
+      </div>
+
+      <div class="scr-result kod-result" id="kodResult" hidden>
+        <h3 id="kodResultTitle"></h3><ol class="kod-solution" id="kodSolution"></ol>
+        <button class="btn" id="kodShare">📤 Udostępnij wynik</button>
+      </div>
     </div>
-    <div class="scr-result" id="kodResult" hidden>
-      <h3 id="kodResultTitle"></h3><ol class="kod-solution" id="kodSolution"></ol>
-      <button class="btn" id="kodShare">📤 Udostępnij wynik</button>
+
+    <div class="kod-histbox" id="kodHistBox">
+      <div class="kod-head"><h3 class="kod-h3">Twoje próby</h3><div class="kod-legend" id="kodLegend"></div></div>
+      <ol class="kod-history" id="kodHistory"></ol>
     </div>
-    <div class="kod-legend" id="kodLegend"></div>
-    <ol class="kod-history" id="kodHistory"></ol>
-    <div class="scr-opts">
+
+    <div class="kod-settings">
       <button class="btn secondary" id="kodDaily">📅 Kod dnia</button>
       <button class="btn secondary" id="kodRandom">🎲 Losowy kod</button>
       <select id="kodMode" aria-label="Kategoria"></select>
-      <label class="toggle"><input type="checkbox" id="kodEasy"> Łatwy (piosenki z różnych dekad)</label>
+      <label class="toggle"><input type="checkbox" id="kodEasy"> Łatwy (różne dekady)</label>
       <label class="toggle"><input type="checkbox" id="kodColors"> 🎨 Kolorowe podpowiedzi</label>
     </div>
     <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
@@ -2224,6 +2237,6 @@ $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
-<script src="gry.js?v=d07190e4"></script>
+<script src="gry.js?v=a3391dc9"></script>
 </body>
 </html>
