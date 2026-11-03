@@ -177,10 +177,25 @@ $("muteBtn").addEventListener("click", syncMiniMute);
 
 /* ===================== Gra 1: Muzyczne czwórki ===================== */
 
-const COLOR_RE = /\b(biał|biel|czerw|zielon|niebiesk|czarn|złot|złoc|różow|bury|szar|żółt|srebr)/i;
+const COLOR_RE = /\b(biał|czerw|zielon|niebiesk|czarn|złot|złoc|różow|bury|szar|żółt|srebr)/i;
 const NAME_TITLES = ["Małgośka", "Baśka", "Nie płacz Ewka", "Peggy Brown", "Jenny", "Józek, nie daruję ci tej nocy", "Charlie, Charlie", "Michael Essien Birthday Party", "RiRi", "Janosik (feat. Golec uOrkiestra)", "Zizu", "Arahja", "Malibu Barbie", "Gaja"];
 const PLACE_TITLES = ["Warszawa", "Berlin Zachodni", "Londyn 8:15", "Lloret de Mar", "CASABLANCA", "Mississippi w ogniu", "Sen o Warszawie", "Polska", "Polsko", "Nie pytaj o Polskę", "kyoto", "Madagaskar", "Fiji", "Złote Tarasy", "Boskie Buenos", "Cykady na Cykladach", "Krakowski spleen", "Puerto Bounce (feat. Vladimir Cauchemar)"];
 const nameSet = new Set(NAME_TITLES), placeSet = new Set(PLACE_TITLES);
+const ENGLISH_TITLES = new Set(["Love Song", "Cool Me Down", "Horses", "Superhero", "River", "The Tower", "hot coffee", "Candy", "Rockstar", "Drive", "Taxi",
+  "Error", "Supergirl", "Molly", "King", "Son of the Blue Sky", "Thank You Very Much", "Anyone I Want to Be", "Jungle Girl", "West Coast", "Jetlag", "Uh La La La"]);
+const ANIMAL_TITLES = new Set(["Króliczek", "Kundel bury", "Papuga", "Baranek", "Oddech szczura", "Jaskółka uwięziona", "Cykady na Cykladach", "Horses"]);
+// Kategorie tematyczne (każda potrzebuje co najmniej 4 piosenek różnych wykonawców – resztę pilnuje makeBoard)
+const THEMES = [
+  { key: "color", label: "Kolor w tytule", test: s => COLOR_RE.test(s.title) },
+  { key: "name", label: "Imię lub ksywka w tytule", test: s => nameSet.has(s.title) },
+  { key: "place", label: "Miejsce w tytule", test: s => placeSet.has(s.title) },
+  { key: "number", label: "Liczba w tytule", test: s => /\d/.test(s.title) },
+  { key: "question", label: "Tytuł jest pytaniem", test: s => s.title.trim().endsWith("?") },
+  { key: "english", label: "Tytuł po angielsku", test: s => ENGLISH_TITLES.has(s.title) },
+  { key: "animal", label: "Zwierzę w tytule", test: s => ANIMAL_TITLES.has(s.title) },
+  { key: "love", label: "Miłość w tytule", test: s => /miło|kocha|kocham/i.test(s.title) },
+  { key: "time", label: "Pora roku, dnia lub czas w tytule", test: s => /niedziel|jesie|wiosn|zim[aynoe]|\blato\b|\bmaj\b|\bnoc|\bdni\b|dzień|świt|wieczor|wieczór|poran|późno|\bczas/i.test(s.title) },
+];
 
 const C_COLORS = [
   { cls: "g0", emoji: "🟩", label: "łatwa" },
@@ -206,9 +221,7 @@ function czworkiCandidates() {
   }
   for (const [a, list] of byArtist) if (list.length >= 4)
     groups.push({ kind: "artist", key: "a:" + a, label: "Wykonawca: " + displayArtist(a), level: list.length >= 6 ? 0 : 1, artist: a, test: s => primaryOf(s) === a });
-  groups.push({ kind: "theme", key: "color", label: "Kolor w tytule", level: 2, test: s => COLOR_RE.test(s.title) });
-  groups.push({ kind: "theme", key: "name", label: "Imię lub ksywka w tytule", level: 2, test: s => nameSet.has(s.title) });
-  groups.push({ kind: "theme", key: "place", label: "Miejsce w tytule", level: 2, test: s => placeSet.has(s.title) });
+  for (const th of THEMES) groups.push({ kind: "theme", key: th.key, label: th.label, level: 2, test: th.test });
   const years = new Map();
   for (const s of ALL_POLISH) years.set(s.year, (years.get(s.year) || 0) + 1);
   for (const [y, n] of years) if (n >= 6)
