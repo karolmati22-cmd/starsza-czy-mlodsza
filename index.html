@@ -293,22 +293,115 @@
     .slide-in { animation-name: slideUp; }
     @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } }
   }
+
+  /* ===================== Nowy wygląd (2026-11) ===================== */
+  header { background: rgba(11, 11, 20, 0.92); border-bottom: 1px solid #1f1f30; padding: 10px 20px; }
+  .hleft { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .hdr-back { background: #2e2e42; color: var(--text); border: none; font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .hdr-back:hover { background: #3a3a54; }
+  h1 { font-size: 1.15rem; white-space: nowrap; }
+  .scores { gap: 8px; }
+  .scores .pill { display: flex; align-items: baseline; gap: 6px; background: #1b1b2a; border: 1px solid #2a2a40; padding: 5px 12px; border-radius: 999px; font-size: 0.8rem; }
+  .scores .pill b { margin: 0; font-size: 1.05rem; }
+  .scores .pill.best b { color: var(--accent); }
+  .toggle { font-size: 0.85rem; }
+
+  .card { padding: 36px 24px; }
+  .card::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 35%, rgba(255,255,255,0.08), transparent 60%), linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.35)); pointer-events: none; }
+  .card > * { position: relative; }
+  .vinyl { width: 140px; height: 140px; box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 0 6px rgba(255,255,255,0.06); }
+  .title { text-shadow: 0 2px 16px rgba(0,0,0,0.35); }
+  .label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+  .year { font-size: clamp(3.4rem, 8vw, 5.6rem); }
+  .buttons { max-width: 300px; gap: 10px; }
+  .buttons button {
+    display: flex; align-items: center; justify-content: center; gap: 12px; text-align: left;
+    padding: 12px 20px; border-radius: 16px; border: none; background: rgba(255,255,255,0.94); color: #141420;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.3);
+  }
+  .buttons button b { display: block; font-size: 1.15rem; line-height: 1.1; }
+  .buttons button small { display: block; font-size: 0.72rem; font-weight: 600; opacity: 0.6; }
+  .buttons button .bi { font-size: 1.3rem; }
+  .buttons button { justify-content: flex-start; padding-left: 26px; }
+  .buttons button .bi { width: 30px; text-align: center; }
+  @media (hover: hover) { .buttons button:hover { background: var(--accent); color: #141420; transform: translateY(-2px) scale(1.02); } }
+  .buttons button:disabled { opacity: 0.5; background: rgba(255,255,255,0.94); color: #141420; }
+  .vs { width: 70px; height: 70px; background: #0f0f17; color: var(--accent); box-shadow: 0 0 0 4px var(--accent), 0 0 30px rgba(250,204,21,0.35); font-size: 1.3rem; }
+  .vs.ok { background: var(--ok); color: #fff; box-shadow: 0 0 0 4px #fff, 0 0 30px rgba(34,197,94,0.5); }
+  .vs.bad { background: var(--bad); color: #fff; box-shadow: 0 0 0 4px #fff, 0 0 30px rgba(239,68,68,0.5); }
+
+  /* menu gry na pełnym ekranie */
+  .overlay.start-page { background: #0b0b14; align-items: flex-start; }
+  .overlay.start-page::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(520px 360px at 15% 10%, rgba(250,204,21,0.14), transparent 70%), radial-gradient(520px 380px at 85% 20%, rgba(251,146,60,0.12), transparent 70%);
+  }
+  .dialog.start { position: relative; max-width: 760px; background: transparent; box-shadow: none; padding: 24px 8px 40px; text-align: center; }
+  .start-hero h2 { font-size: clamp(2.2rem, 6vw, 3.4rem); letter-spacing: -0.03em; line-height: 1.05; margin: 10px 0 10px; }
+  .start-hero h2 span { background: linear-gradient(90deg, #facc15, #fb923c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .start-hero p { font-size: 1.05rem; color: #c4c4d4 !important; }
+  .start-discs { display: flex; align-items: center; justify-content: center; margin: 6px 0 4px; }
+  .sd { width: 64px; height: 64px; border-radius: 50%; animation: spin 5s linear infinite;
+    background: radial-gradient(circle, #facc15 0 20%, #111 22% 26%, transparent 28%), repeating-radial-gradient(circle, #222 0 2px, #0c0c0c 2px 4px); box-shadow: 0 10px 24px rgba(0,0,0,0.5); }
+  .sd2 { animation-direction: reverse; background: radial-gradient(circle, #fb923c 0 20%, #111 22% 26%, transparent 28%), repeating-radial-gradient(circle, #222 0 2px, #0c0c0c 2px 4px); }
+  .sd-vs { width: 34px; height: 34px; border-radius: 50%; background: #0f0f17; color: var(--accent); box-shadow: 0 0 0 3px var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.75rem; margin: 0 -10px; z-index: 1; }
+  .start-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 22px 0 6px; }
+  .start-steps div { display: flex; gap: 10px; align-items: center; text-align: left; background: #161622; border: 1px solid #262638; border-radius: 14px; padding: 12px; font-size: 0.86rem; color: #c9c9d8; line-height: 1.35; }
+  .start-steps b { flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #141420; display: flex; align-items: center; justify-content: center; }
+  .start-steps em { font-style: normal; color: var(--text); font-weight: 700; }
+  .start-label { margin: 22px 0 8px !important; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--muted) !important; }
+  .dialog.start .seg { max-width: 480px; margin: 0 auto; }
+  .dialog.start .modes { grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 0; }
+  .dialog.start .modes .btn {
+    background: #161622; color: var(--text); border: 1px solid #2a2a40; border-radius: 16px; padding: 16px; text-align: left;
+    font-size: 1.05rem; transition: transform 0.12s, border-color 0.15s, background 0.15s;
+  }
+  .dialog.start .modes .btn small { color: var(--muted); opacity: 1; font-size: 0.8rem; margin-top: 4px; }
+  .dialog.start .modes .btn:hover { border-color: var(--accent); background: #1d1b22; transform: translateY(-2px); filter: none; }
+  .dialog.start .modes .btn.picked { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .dialog.start .btn.friends { margin-top: 14px; padding: 15px; font-size: 1.02rem; border-radius: 16px; background: linear-gradient(90deg, #3b82f6, #6366f1); }
+  .dialog.start .challenge { margin-top: 18px; }
+
+  /* koniec gry */
+  #endOverlay .dialog { background: linear-gradient(160deg, rgba(250,204,21,0.12), #1b1b28 55%); border: 1px solid rgba(250,204,21,0.3); border-radius: 22px; }
+  #endOverlay .big { font-size: 4.5rem; line-height: 1; margin: 14px 0 6px; }
+
+  @media (max-width: 760px) {
+    header { padding: 8px 12px; gap: 8px 10px; }
+    .hleft { gap: 8px; width: 100%; }
+    h1 { font-size: 0.98rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .hleft .chip { display: none; }
+    .hdr-back { padding: 6px 11px; font-size: 0.85rem; }
+    .hright { gap: 10px; width: 100%; justify-content: space-between; }
+    .volume input[type=range] { width: 70px; }
+    .volume .pct { display: none; }
+    .scores .pill { padding: 4px 9px; }
+    .vinyl { width: 92px; height: 92px; }
+    .buttons button { padding: 10px 12px; gap: 8px; }
+    .buttons button b { font-size: 1rem; }
+    .start-steps { grid-template-columns: 1fr; }
+    .dialog.start .modes .btn { padding: 12px; font-size: 0.98rem; }
+    .vs { width: 52px; height: 52px; font-size: 1rem; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>🎵 Starsza czy <span>młodsza?</span><span class="chip" id="modeChip" hidden></span></h1>
+  <div class="hleft">
+    <button class="hdr-back" id="hdrMenu" title="Wróć do menu gry">← Menu</button>
+    <h1>Starsza czy <span>młodsza?</span><span class="chip" id="modeChip" hidden></span></h1>
+  </div>
   <div class="hright">
     <div class="volume" id="volumeBox">
       <button id="muteBtn" aria-label="Wycisz" title="Wycisz / włącz dźwięk">🔊</button>
       <input type="range" id="volume" min="0" max="100" step="1" value="80" aria-label="Głośność">
       <span class="pct" id="volPct">80%</span>
     </div>
-    <label class="toggle"><input type="checkbox" id="autoplay" checked> Autoodtwarzanie</label>
+    <label class="toggle" title="Automatycznie odtwarzaj nową piosenkę"><input type="checkbox" id="autoplay" checked> Auto ▶</label>
     <div class="timer" id="timer" hidden>⏱ <b id="timeLeft">1:00</b><span class="penalty" id="penalty">−5 s</span></div>
     <div class="scores">
-      <div>Wynik:<b id="score">0</b></div>
-      <div>Rekord:<b id="best">0</b></div>
+      <div class="pill"><span>Wynik</span><b id="score">0</b></div>
+      <div class="pill best"><span>Rekord</span><b id="best">0</b></div>
     </div>
   </div>
 </header>
@@ -340,8 +433,8 @@
     <div class="artist" id="bArtist"></div>
     <div class="label" id="bLabel">jest…</div>
     <div class="buttons" id="buttons">
-      <button id="btnOlder">⏪ Starsza</button>
-      <button id="btnYounger">Młodsza ⏩</button>
+      <button id="btnOlder"><span class="bi">⏪</span><span><b>Starsza</b><small>wydana wcześniej</small></span></button>
+      <button id="btnYounger"><span class="bi">⏩</span><span><b>Młodsza</b><small>wydana później</small></span></button>
     </div>
     <div class="year" id="bYear" hidden></div>
     <a class="am-link" id="bAM" target="_blank" rel="noopener" hidden>Słuchaj w Apple Music ↗</a>
@@ -432,28 +525,30 @@
   </footer>
 </section>
 
-<div class="overlay show" id="startOverlay">
-  <div class="dialog">
+<div class="overlay show start-page" id="startOverlay">
+  <div class="dialog start">
     <button class="back-hub link-btn">← Wszystkie gry</button>
-    <h2>🎶 Starsza czy młodsza?</h2>
-    <p>Zgadnij, która piosenka powstała wcześniej.</p>
-    <ul class="rules">
-      <li>Po lewej widzisz piosenkę razem z rokiem wydania.</li>
-      <li>Zdecyduj, czy piosenka po prawej jest <b>starsza</b> (wydana wcześniej) czy <b>młodsza</b> (wydana później).</li>
-      <li>Kliknij płytę, żeby posłuchać 30-sekundowego fragmentu.</li>
-      <li>Grasz do pierwszego błędu albo na czas: 60 sekund na jak najwięcej trafień.</li>
-    </ul>
+    <div class="start-hero">
+      <div class="start-discs" aria-hidden="true"><span class="sd"></span><span class="sd-vs">VS</span><span class="sd sd2"></span></div>
+      <h2>Starsza czy <span>młodsza?</span></h2>
+      <p>Dwie piosenki, jedno pytanie: która powstała wcześniej? Jak długą serię zrobisz?</p>
+    </div>
+    <div class="start-steps">
+      <div><b>1</b><span>Po lewej masz piosenkę <em>z rokiem wydania</em></span></div>
+      <div><b>2</b><span>Kliknij płytę po prawej, żeby <em>posłuchać</em></span></div>
+      <div><b>3</b><span>Zdecyduj: <em>starsza</em> czy <em>młodsza</em>?</span></div>
+    </div>
     <div class="challenge" id="challenge" hidden>
       <div id="challengeText"></div>
       <button class="btn" id="challengeGo" hidden>▶ Przyjmij wyzwanie</button>
     </div>
-    <p style="margin-top:12px">Tryb gry:</p>
+    <p class="start-label">Tryb gry</p>
     <div class="seg" id="gameType">
       <button data-type="classic" class="on">♾ Do pierwszego błędu</button>
       <button data-type="timed">⏱ Na czas · 60 s</button>
     </div>
     <p class="seg-hint" id="typeHint">Jedna pomyłka kończy grę.</p>
-    <p style="margin-top:6px">Wybierz kategorię:</p>
+    <p class="start-label">Wybierz kategorię i graj</p>
     <div class="modes">
       <button class="btn" data-mode="rap">🎤 Rap<small>polski hip-hop</small></button>
       <button class="btn" data-mode="pop">🔥 Popularne<small>hity od 2000 roku</small></button>
@@ -1811,6 +1906,11 @@ async function doShare() {
     status.textContent = "Zaznaczyłem tekst – skopiuj go (Ctrl+C) i wyślij znajomym.";
   }
 }
+$("hdrMenu").onclick = () => {
+  if (live) { leaveRoom(); return; }
+  stopTimer(); $("timer").hidden = true; stopAudio(); ctx = null;
+  document.querySelectorAll(".overlay").forEach(o => o.classList.toggle("show", o.id === "startOverlay"));
+};
 $("menuBtn").onclick = () => { ctx = null; stopTimer(); $("timer").hidden = true; stopAudio(); $("endOverlay").classList.remove("show"); $("startOverlay").classList.add("show"); };
 document.addEventListener("keydown", e => {
   if (e.target.matches && e.target.matches("input[type=range]")) return;
