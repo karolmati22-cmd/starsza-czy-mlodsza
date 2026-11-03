@@ -348,19 +348,89 @@
   </section>
 </main>
 
-<div class="overlay" id="hubOverlay">
-  <div class="dialog hub">
-    <h2>🎵 Muzyczne gry</h2>
-    <p>Polskie piosenki w czterech odsłonach. Wybierz grę:</p>
-    <div class="hub-grid">
-      <button class="hub-card" data-game="starsza"><span class="hub-ic">🕰️</span><b>Starsza czy młodsza?</b><small>Zgadnij, która piosenka jest starsza. Solo, na czas i ze znajomymi na żywo.</small></button>
-      <button class="hub-card" data-game="czworki"><span class="hub-ic">🧩</span><b>Muzyczne czwórki</b><small>16 piosenek, 4 ukryte grupy. Nowa plansza codziennie.</small></button>
-      <button class="hub-card" data-game="detektyw"><span class="hub-ic">🕵️</span><b>Muzyczny detektyw</b><small>Pytaj „tak / nie” i odgadnij piosenkę komputera, zanim on odgadnie Twoją.</small></button>
-      <button class="hub-card" data-game="kod"><span class="hub-ic">🔐</span><b>Muzyczny kod</b><small>Które 4 z 8 piosenek są w kodzie? Ułóż je od najstarszej.</small></button>
+<section class="screen home" id="scrHome" hidden>
+  <div class="home-glow" aria-hidden="true"></div>
+  <header class="home-hero">
+    <div class="home-hero-text">
+      <span class="home-kicker">🎵 Polskie piosenki · od 1933 do dziś</span>
+      <h1>Muzyczne <span>gry</span></h1>
+      <p class="home-lead">Zgaduj lata wydania, szukaj ukrytych powiązań, przesłuchuj podejrzane piosenki i łam muzyczne kody. Cztery gry w jednym miejscu – solo, na czas i ze znajomymi.</p>
+      <div class="home-cta">
+        <button class="btn" data-game="starsza">▶ Zagraj teraz</button>
+        <button class="btn ghost" id="homeFriendsJump">👥 Graj ze znajomymi</button>
+      </div>
+      <div class="home-stats" id="homeStats"></div>
     </div>
+    <div class="home-art" aria-hidden="true">
+      <div class="hv-disc"><div class="hv-label">♪</div></div>
+      <div class="hv-eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </header>
+
+  <section class="home-sec">
+    <h2>Wybierz grę</h2>
+    <div class="home-grid">
+      <button class="game-card gc-starsza" data-game="starsza">
+        <div class="gc-art"><span class="mini-disc"></span><span class="mini-vs">VS</span><span class="mini-disc d2"></span></div>
+        <div class="gc-body">
+          <h3>Starsza czy młodsza?</h3>
+          <p>Dwie piosenki, jedno pytanie: która powstała wcześniej? Rap, hity, klasyki albo wszystko naraz.</p>
+          <div class="gc-tags"><span>Solo</span><span>Na czas</span><span>Pojedynki na żywo</span></div>
+          <div class="gc-foot"><small class="gc-stat" id="gcStarsza"></small><span class="gc-go">Graj →</span></div>
+        </div>
+      </button>
+      <button class="game-card gc-czworki" data-game="czworki">
+        <div class="gc-art"><span class="mini-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="gc-body">
+          <h3>Muzyczne czwórki</h3>
+          <p>16 piosenek ukrywa 4 grupy – ten sam wykonawca, rok albo motyw w tytule. Znajdziesz wszystkie?</p>
+          <div class="gc-tags"><span>Plansza dnia</span><span>Losowe plansze</span></div>
+          <div class="gc-foot"><small class="gc-stat" id="gcCzworki"></small><span class="gc-go">Graj →</span></div>
+        </div>
+      </button>
+      <button class="game-card gc-detektyw" data-game="detektyw">
+        <div class="gc-art"><span class="mini-glass">🔍</span></div>
+        <div class="gc-body">
+          <h3>Muzyczny detektyw</h3>
+          <p>Zadawaj pytania własnymi słowami – „Czy śpiewa kobieta?”, „Czy to lata 90.?” – i wskaż ukrytą piosenkę.</p>
+          <div class="gc-tags"><span>Solo</span><span>Wyścig z komputerem</span><span>We dwoje online</span></div>
+          <div class="gc-foot"><small class="gc-stat" id="gcDetektyw"></small><span class="gc-go">Graj →</span></div>
+        </div>
+      </button>
+      <button class="game-card gc-kod" data-game="kod">
+        <div class="gc-art"><span class="mini-pegs"><i class="g"></i><i class="y"></i><i class="x"></i><i class="g"></i></span></div>
+        <div class="gc-body">
+          <h3>Muzyczny kod</h3>
+          <p>Które 4 z 8 piosenek są w kodzie i w jakiej kolejności – od najstarszej? Masz 8 prób.</p>
+          <div class="gc-tags"><span>Kod dnia</span><span>Kolorowe podpowiedzi</span></div>
+          <div class="gc-foot"><small class="gc-stat" id="gcKod"></small><span class="gc-go">Graj →</span></div>
+        </div>
+      </button>
+    </div>
+  </section>
+
+  <section class="home-sec">
+    <h2>Dzisiejsze wyzwania</h2>
+    <div class="daily-grid">
+      <button class="daily-card" data-game="czworki"><span class="daily-ic">🧩</span><span><b>Plansza dnia</b><small id="dailyCz"></small></span><span class="gc-go">→</span></button>
+      <button class="daily-card" data-game="kod"><span class="daily-ic">🔐</span><span><b>Kod dnia</b><small id="dailyKod"></small></span><span class="gc-go">→</span></button>
+    </div>
+  </section>
+
+  <section class="home-sec" id="homeFriends">
+    <h2>Ze znajomymi</h2>
+    <div class="friends-grid">
+      <button class="friend-card" id="homeLiveStarsza"><b>⚡ Pojedynek na żywo</b><small>Załóż pokój w „Starsza czy młodsza?”, wyślij link i grajcie naraz te same piosenki – z tabelą wyników na żywo.</small></button>
+      <button class="friend-card" id="homeLiveDet"><b>🕵️ Detektyw we dwoje</b><small>Każde ma swoją ukrytą piosenkę – kto pierwszy odgadnie piosenkę drugiej osoby?</small></button>
+      <div class="friend-card info"><b>🏆 Wyzwanie na tych samych piosenkach</b><small>Po każdej grze możesz wysłać link – znajomy zagra dokładnie te same piosenki i porówna wynik z Twoim.</small></div>
+    </div>
+  </section>
+
+  <footer class="home-foot">
     <p class="am-credit">🎵 Fragmenty utworów to oficjalne podglądy z <a href="https://music.apple.com/pl/" target="_blank" rel="noopener">Apple Music</a>. Prawa do nagrań należą do ich twórców i wydawców. Strona jest niekomercyjna.</p>
-  </div>
-</div>
+    <p class="am-credit">Rekordy i postępy zapisują się tylko w Twojej przeglądarce.</p>
+  </footer>
+</section>
 
 <div class="overlay show" id="startOverlay">
   <div class="dialog">

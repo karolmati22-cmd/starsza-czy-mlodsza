@@ -103,6 +103,7 @@ let currentScreen = null;
 function hideAllScreens() {
   stopClip();
   for (const id of Object.values(SCREENS)) $(id).hidden = true;
+  $("scrHome").hidden = true;
   currentScreen = null;
 }
 function showHub() {
@@ -110,8 +111,41 @@ function showHub() {
   hideAllScreens();
   stopTimer(); stopAudio();
   if (location.hash) history.replaceState(null, "", location.pathname);
-  document.querySelectorAll(".overlay").forEach(o => o.classList.toggle("show", o.id === "hubOverlay"));
+  document.querySelectorAll(".overlay").forEach(o => o.classList.remove("show"));
+  renderHome();
+  $("scrHome").hidden = false;
+  $("scrHome").scrollTop = 0;
 }
+
+/* ---- Strona główna: liczby, rekordy i dzisiejsze wyzwania ---- */
+function renderHome() {
+  const artists = new Set(ALL_POLISH.map(primaryOf)).size;
+  const years = ALL_POLISH.map(s => s.year);
+  $("homeStats").innerHTML =
+    `<div><b>${ALL_POLISH.length}</b><span>piosenek</span></div>` +
+    `<div><b>${artists}</b><span>wykonawców</span></div>` +
+    `<div><b>${Math.min(...years)}–${Math.max(...years)}</b><span>lata wydania</span></div>` +
+    `<div><b>4</b><span>gry</span></div>`;
+  // rekordy z tej przeglądarki
+  let best = 0;
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^scm-best-/.test(k)) best = Math.max(best, +localStorage.getItem(k) || 0); } } catch (e) {}
+  $("gcStarsza").textContent = best ? `🏅 Twój rekord: ${best}` : "";
+  const cz = store.get("scm-cz-stats", null);
+  $("gcCzworki").textContent = cz && cz.played ? `🔥 Seria dni: ${cz.streak} · wygrane ${cz.won}/${cz.played}` : "";
+  const det = store.get("scm-det-solo", null);
+  $("gcDetektyw").textContent = det && det.best ? `🏅 Rekord: ${det.best} ${pytan(det.best)}` : "";
+  const kodLast = store.get("scm-kod-last", null);
+  $("gcKod").textContent = kodLast && kodLast.won ? `🏅 Ostatnio: złamany w ${kodLast.tries}/${KOD_TRIES}` : "";
+  // dzisiejsze wyzwania
+  const today = todayKey();
+  if (cz && cz.last === today) $("dailyCz").textContent = cz.lastWon === today ? "✔ Rozwiązana dzisiaj – wróć jutro po nową" : "Dzisiaj się nie udało – jutro nowa plansza";
+  else { const d = store.get("scm-cz-day", null); $("dailyCz").textContent = d && d.date === today && d.guesses.length ? "⏳ W trakcie – dokończ planszę" : "Czeka na Ciebie – ta sama dla wszystkich graczy"; }
+  if (kodLast && kodLast.date === today) $("dailyKod").textContent = kodLast.won ? `✔ Złamany dzisiaj w ${kodLast.tries}/${KOD_TRIES}` : "Dzisiaj się nie udało – jutro nowy kod";
+  else { const d = store.get("scm-kod-day", null); $("dailyKod").textContent = d && d.date === today && d.rows.length ? "⏳ W trakcie – dokończ kod" : "Czeka na Ciebie – ten sam dla wszystkich graczy"; }
+}
+$("homeFriendsJump").onclick = () => $("homeFriends").scrollIntoView({ behavior: "smooth" });
+$("homeLiveStarsza").onclick = () => { track("gra", { gra: "starsza", z: "strona glowna - pojedynek" }); openStarsza(); $("friendsBtn").click(); };
+$("homeLiveDet").onclick = () => { track("gra", { gra: "detektyw", z: "strona glowna - we dwoje" }); openScreen("detektyw"); Detektyw.setMode("online"); };
 function openScreen(key, ...args) {
   hideAllScreens();
   stopTimer(); stopAudio();
@@ -1030,6 +1064,7 @@ const Kod = {
     this.row = [];
     if (black === 4 || this.history.length >= KOD_TRIES) {
       this.over = true;
+      if (this.daily && !silent) store.set("scm-kod-last", { date: this.dateKey, won: black === 4, tries: this.history.length });
       if (!silent) track("koniec", { gra: "kod", kod: this.daily ? "dnia" : "losowy", wygrana: black === 4, proby: this.history.length });
     }
     if (this.daily) store.set("scm-kod-day", { date: this.dateKey, rows: this.history.map(h => h.row.map(s => this.pool8.indexOf(s))) });
