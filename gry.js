@@ -249,6 +249,7 @@ function makeBoard(seedNum) {
     if (chosen.length < 4) continue;
     const chosenArtists = chosen.filter(g => g.kind === "artist").map(g => g.artist);
     const result = [];
+    const usedTitles = new Set();          // dwa identyczne tytuły na jednej planszy byłyby mylące
     let ok = true;
     for (const g of chosen) {
       const pool = ALL_POLISH.filter(s => {
@@ -262,6 +263,8 @@ function makeBoard(seedNum) {
       const picked = [];
       for (const s of shuffled(pool, r)) {
         if (g.kind !== "artist" && picked.some(p => primaryOf(p) === primaryOf(s))) continue;
+        if (usedTitles.has(nrm(s.title))) continue;
+        usedTitles.add(nrm(s.title));
         picked.push(s);
         if (picked.length === 4) break;
       }
