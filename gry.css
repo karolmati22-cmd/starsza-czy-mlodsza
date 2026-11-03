@@ -485,3 +485,52 @@
 .kod-chip.used .kod-cover, .kod-chip.used .kod-text { opacity: 0.4; }
 .kod-pos { top: 6px; right: 6px; width: 22px; height: 22px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
 .kod-sol-t .am-link { margin-left: 8px; }
+
+/* ===================== Czwórki – nowy wygląd ===================== */
+#scrCzworki { --zc: #4ade80; }
+#scrCzworki .scr-body { max-width: 900px; }
+.cz-board { background: #141420; border: 1px solid #23233a; border-radius: 20px; padding: 16px; }
+.cz-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.cz-sub { font-weight: 800; color: var(--accent); margin-right: auto; }
+.cz-hl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; margin-right: 6px; }
+.cz-found b { font-size: 1.05rem; }
+.cz-mistakes { margin: 0; display: flex; align-items: center; color: var(--text); }
+.cz-mistakes i { font-style: normal; font-size: 1.05rem; color: #3a3a50; margin-left: 2px; transition: color 0.3s; }
+.cz-mistakes i.on { color: #f472b6; }
+.cz-grid { gap: 10px; }
+.cz-tile {
+  min-height: 92px; padding: 14px 10px 12px; border-radius: 14px; gap: 0;
+  background: linear-gradient(160deg, #23233a, #1b1b2a); border: 1px solid #2c2c44;
+  transition: transform 0.12s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.cz-tile:hover { background: linear-gradient(160deg, #2a2a44, #20203a); border-color: #3a3a58; transform: translateY(-2px); }
+.cz-tile .clip { position: absolute; top: 7px; left: 7px; width: 26px; height: 26px; font-size: 0.68rem; background: rgba(255, 255, 255, 0.85); }
+.cz-title { font-size: 1rem; font-weight: 800; line-height: 1.2; padding: 6px 4px 0; }
+.cz-title.long { font-size: 0.85rem; }
+.cz-tile.sel { background: linear-gradient(160deg, #4ade80, #22c55e); color: #052e14; border-color: #4ade80; transform: scale(0.97); box-shadow: 0 8px 22px rgba(74, 222, 128, 0.25); }
+.cz-tile.sel .clip { background: rgba(255, 255, 255, 0.95); }
+.cz-check { position: absolute; top: 6px; right: 9px; font-weight: 800; font-size: 0.95rem; }
+.cz-group { border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; animation: czIn 0.35s ease-out; }
+@keyframes czIn { from { opacity: 0; transform: scale(0.96); } }
+.cz-glabel { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.92rem; margin-bottom: 8px; }
+.cz-gsongs { gap: 8px; }
+.cz-gsong { background: rgba(255, 255, 255, 0.35); border-radius: 10px; padding: 6px 8px; align-items: center; }
+#scrCzworki .scr-body .btn:not(.secondary) { background: var(--zc); color: #052e14; }
+.cz-result { background: linear-gradient(160deg, rgba(74, 222, 128, 0.14), #1b1b28 60%); border: 1px solid rgba(74, 222, 128, 0.3); max-width: none; margin-top: 14px; }
+.cz-grid-preview { white-space: pre; line-height: 1.15; font-size: 1.3rem; letter-spacing: 2px; margin: 4px 0 14px; }
+.cz-settings { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: 16px; padding: 12px; border-radius: 16px; background: #10101a; }
+#czGrid.shake { animation: shake 0.4s; }
+
+@media (max-width: 760px) {
+  .cz-board { padding: 10px; }
+  .cz-grid { gap: 6px; }
+  .cz-tile { min-height: 80px; padding: 12px 4px 8px; }
+  .cz-tile .clip { width: 22px; height: 22px; top: 5px; left: 5px; font-size: 0.6rem; }
+  .cz-title { font-size: 0.8rem; padding-top: 10px; }
+  .cz-title.long { font-size: 0.7rem; }
+  .cz-head { gap: 10px; }
+  .cz-sub { flex-basis: 100%; }
+}
+.cz-title { overflow-wrap: break-word; word-break: normal; hyphens: auto; -webkit-hyphens: auto; }
+@media (max-width: 760px) { .cz-title { font-size: 0.76rem; } .cz-title.long { font-size: 0.68rem; } }
+@media (max-width: 760px) { .cz-tile { padding-top: 26px; } .cz-title { padding-top: 0; } }

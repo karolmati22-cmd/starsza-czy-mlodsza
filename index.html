@@ -6,7 +6,7 @@
 <title>Muzyczne gry – Starsza czy młodsza? i inne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="gry.css?v=fafff753">
+<link rel="stylesheet" href="gry.css?v=c97417b8">
 <!-- Statystyki odwiedzin (Umami, bez ciasteczek) – liczone tylko na opublikowanej stronie -->
 <script defer src="https://cloud.umami.is/script.js" data-website-id="eb493614-1fdc-40a0-8b46-41031d410130" data-domains="karolmati22-cmd.github.io" data-exclude-hash="true"></script>
 <style>
@@ -489,21 +489,27 @@
 <section class="screen" id="scrCzworki" hidden>
   <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🧩 Muzyczne czwórki</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
-    <p class="scr-sub" id="czSub"></p>
-    <p class="scr-help">Znajdź 4 grupy po 4 piosenki, które coś łączy – wykonawca, rok wydania albo motyw w tytule. Kliknij ▶, żeby posłuchać. Możesz pomylić się 3 razy, czwarta pomyłka kończy grę.</p>
-    <div id="czSolved"></div>
-    <div class="cz-grid" id="czGrid"></div>
-    <div class="cz-mistakes" id="czMistakes"></div>
-    <div class="scr-actions" id="czControls">
-      <button class="btn secondary" id="czShuffle">🔀 Przetasuj</button>
-      <button class="btn secondary" id="czClear">Odznacz</button>
-      <button class="btn" id="czSubmit">Sprawdź</button>
+    <p class="scr-help">Znajdź 4 grupy po 4 piosenki, które coś łączy – wykonawca, lata wydania albo motyw w tytule. Zaznacz 4 kafelki i kliknij „Sprawdź”. Kliknij ▶, żeby posłuchać.</p>
+    <div class="cz-board">
+      <div class="cz-head">
+        <span class="cz-sub" id="czSub"></span>
+        <span class="cz-found" id="czFound"></span>
+        <span class="cz-mistakes" id="czMistakes"></span>
+      </div>
+      <div id="czSolved"></div>
+      <div class="cz-grid" id="czGrid"></div>
+      <div class="scr-actions" id="czControls">
+        <button class="btn secondary" id="czShuffle">🔀 Przetasuj</button>
+        <button class="btn secondary" id="czClear">Odznacz</button>
+        <button class="btn" id="czSubmit">Sprawdź</button>
+      </div>
+      <div class="scr-result cz-result" id="czResult" hidden>
+        <h3 id="czResultTitle"></h3><p id="czResultInfo"></p>
+        <div class="cz-grid-preview" id="czPreview"></div>
+        <button class="btn" id="czShare">📤 Udostępnij wynik</button>
+      </div>
     </div>
-    <div class="scr-result" id="czResult" hidden>
-      <h3 id="czResultTitle"></h3><p id="czResultInfo"></p>
-      <button class="btn" id="czShare">📤 Udostępnij wynik</button>
-    </div>
-    <div class="scr-opts">
+    <div class="cz-settings">
       <button class="btn secondary" id="czDaily">📅 Plansza dnia</button>
       <button class="btn secondary" id="czRandom">🎲 Losowa plansza</button>
       <label class="toggle"><input type="checkbox" id="czHard"> 🎧 Tylko słuchanie (bez tytułów)</label>
@@ -2237,6 +2243,6 @@ $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
-<script src="gry.js?v=a3391dc9"></script>
+<script src="gry.js?v=ed09daa7"></script>
 </body>
 </html>

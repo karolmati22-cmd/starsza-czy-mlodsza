@@ -392,7 +392,8 @@ const Czworki = {
     solvedBox.innerHTML = "";
     for (const g of this.solved) {
       const row = el("div", "cz-group " + C_COLORS[g.color].cls);
-      row.appendChild(el("div", "cz-glabel", esc(g.label)));
+      const icon = g.kind === "artist" ? "👤" : g.kind === "theme" ? "🏷️" : "📅";
+      row.appendChild(el("div", "cz-glabel", `<span>${icon}</span> ${esc(g.label)}`));
       const list = el("div", "cz-gsongs");
       for (const s of g.songs) {
         const item = el("span", "cz-gsong");
@@ -413,12 +414,19 @@ const Czworki = {
     left.forEach((t, i) => {
       const tile = el("div", "cz-tile" + (this.selected.has(t) ? " sel" : ""));
       tile.appendChild(clipButton(t.song));
-      tile.appendChild(el("div", "cz-title", this.hard ? "🎧 " + (this.tiles.indexOf(t) + 1) : esc(t.song.title)));
+      const title = this.hard ? "🎧 " + (this.tiles.indexOf(t) + 1) : t.song.title;
+      tile.appendChild(el("div", "cz-title" + (title.length > 22 ? " long" : ""), esc(title)));
+      if (this.selected.has(t)) tile.appendChild(el("span", "cz-check", "✓"));
       tile.onclick = () => this.toggle(t);
       grid.appendChild(tile);
     });
-    $("czMistakes").innerHTML = "Pomyłki: " + [0, 1, 2, 3].map(i => `<span class="dot${i < this.mistakes ? " used" : ""}"></span>`).join("");
+    const chances = Math.max(0, 4 - this.mistakes);
+    $("czMistakes").innerHTML = `<span class="cz-hl">Szanse</span>` + [0, 1, 2, 3].map(i => `<i class="${i < chances ? "on" : ""}">♥</i>`).join("");
+    const found = this.done && !this.won ? this.guesses.filter(g => new Set(g.map(t => t.group)).size === 1).length : this.solved.length;
+    $("czFound").innerHTML = `<span class="cz-hl">Znalezione</span><b>${found}/4</b>`;
     $("czSubmit").disabled = this.selected.size !== 4 || this.done;
+    $("czSubmit").textContent = `Sprawdź (${this.selected.size}/4)`;
+    $("czPreview").textContent = this.done ? this.shareGrid() : "";
     $("czControls").hidden = this.done;
     if (this.done) {
       const st = store.get("scm-cz-stats", null);
