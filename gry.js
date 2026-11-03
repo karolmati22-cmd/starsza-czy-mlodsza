@@ -183,6 +183,9 @@ const PLACE_TITLES = ["Warszawa", "Berlin Zachodni", "Londyn 8:15", "Lloret de M
 const nameSet = new Set(NAME_TITLES), placeSet = new Set(PLACE_TITLES);
 const ENGLISH_TITLES = new Set(["Love Song", "Cool Me Down", "Horses", "Superhero", "River", "The Tower", "hot coffee", "Candy", "Rockstar", "Drive", "Taxi",
   "Error", "Supergirl", "Molly", "King", "Son of the Blue Sky", "Thank You Very Much", "Anyone I Want to Be", "Jungle Girl", "West Coast", "Jetlag", "Uh La La La"]);
+const EUROVISION = new Set(["To nie ja!", "Keine Grenzen – Żadnych granic", "My Słowianie", "River", "Solo", "The Tower", "Gaja", "Anyone I Want to Be", "Superhero"]);
+const FILM_SONGS = new Set(["Kiler", "Kolorowy wiatr", "Miłość ci wszystko wybaczy", "Na pierwszy znak", "Pamiętasz, była jesień"]);
+const FOOD_TITLES = new Set(["Albańskie kakao", "Mix Sałat", "Szlugi i kalafiory", "hot coffee", "Bubbletea", "Wiśnia", "Miód", "Szampan", "Candy", "Malinowy król", "Malinowy chruśniak"]);
 const ANIMAL_TITLES = new Set(["Króliczek", "Kundel bury", "Papuga", "Baranek", "Oddech szczura", "Jaskółka uwięziona", "Cykady na Cykladach", "Horses"]);
 // Kategorie tematyczne (każda potrzebuje co najmniej 4 piosenek różnych wykonawców – resztę pilnuje makeBoard)
 const THEMES = [
@@ -194,6 +197,13 @@ const THEMES = [
   { key: "english", label: "Tytuł po angielsku", test: s => ENGLISH_TITLES.has(s.title) },
   { key: "animal", label: "Zwierzę w tytule", test: s => ANIMAL_TITLES.has(s.title) },
   { key: "love", label: "Miłość w tytule", test: s => /miło|kocha|kocham/i.test(s.title) },
+  { key: "eurovision", label: "Eurowizja (także Junior)", test: s => EUROVISION.has(s.title) },
+  { key: "film", label: "Piosenka z filmu", test: s => FILM_SONGS.has(s.title) },
+  { key: "nie", label: "Tytuł zaczyna się od „Nie”", test: s => /^nie\b/i.test(s.title.trim()) },
+  { key: "you", label: "„Ty”, „ciebie” albo „cię” w tytule", test: s => /(?<!\p{L})(ty|ciebie|cię|tobą|tobie)(?!\p{L})/iu.test(s.title) },
+  { key: "nature", label: "Pogoda lub przyroda w tytule", test: s => /deszcz|wiatr|słońc|niebo|\bfal[aię]?\b|wod[aęy]|wodospad|morz|śnieg|burz|księżyc|gwiazd|chmur|krajobraz|piasku/i.test(s.title) },
+  { key: "food", label: "Jedzenie lub picie w tytule", test: s => FOOD_TITLES.has(s.title) },
+  { key: "body", label: "Część ciała w tytule", test: s => /(?<!\p{L})(oczy|oko|serc\p{L}*|ręce|ręka|włos\p{L}*|język\p{L}*|ciała|nosa|głowy|usta)(?!\p{L})/iu.test(s.title) },
   { key: "time", label: "Pora roku, dnia lub czas w tytule", test: s => /niedziel|jesie|wiosn|zim[aynoe]|\blato\b|\bmaj\b|\bnoc|\bdni\b|dzień|świt|wieczor|wieczór|poran|późno|\bczas/i.test(s.title) },
 ];
 
@@ -222,6 +232,10 @@ function czworkiCandidates() {
   for (const [a, list] of byArtist) if (list.length >= 4)
     groups.push({ kind: "artist", key: "a:" + a, label: "Wykonawca: " + displayArtist(a), level: list.length >= 6 ? 0 : 1, artist: a, test: s => primaryOf(s) === a });
   for (const th of THEMES) groups.push({ kind: "theme", key: th.key, label: th.label, level: 2, test: th.test });
+  for (const d of [1960, 1970, 1980, 1990, 2000]) {
+    const label = d === 2000 ? "Wydane w latach 2000–2009" : `Wydane w latach ${String(d).slice(2)}.`;
+    groups.push({ kind: "decade", key: "d:" + d, label, level: 1, test: s => s.year >= d && s.year <= d + 9 });
+  }
   const years = new Map();
   for (const s of ALL_POLISH) years.set(s.year, (years.get(s.year) || 0) + 1);
   for (const [y, n] of years) if (n >= 6)
@@ -236,10 +250,16 @@ function makeBoard(seedNum) {
   const artists = shuffled(cands.filter(g => g.kind === "artist"), r);
   const themes = shuffled(cands.filter(g => g.kind === "theme"), r);
   const years = shuffled(cands.filter(g => g.kind === "year"), r);
-  const recipes = [["artist", "artist", "theme", "year"], ["artist", "artist", "artist", "year"], ["artist", "theme", "theme", "year"], ["artist", "artist", "theme", "theme"]];
+  const decades = shuffled(cands.filter(g => g.kind === "decade"), r);
+  // przepisy na planszę – najczęściej najwyżej jedna grupa „wykonawca”
+  const recipes = [
+    ["artist", "theme", "theme", "year"], ["artist", "theme", "theme", "decade"], ["theme", "theme", "theme", "year"],
+    ["artist", "theme", "theme", "theme"], ["theme", "theme", "decade", "year"], ["artist", "theme", "decade", "year"],
+    ["theme", "theme", "theme", "decade"], ["artist", "artist", "theme", "year"],
+  ];
   for (let attempt = 0; attempt < 60; attempt++) {
     const recipe = recipes[Math.floor(r() * recipes.length)];
-    const pick = { artist: [...artists], theme: [...themes], year: [...years] };
+    const pick = { artist: [...artists], theme: [...themes], year: [...years], decade: [...decades] };
     const chosen = [];
     for (const k of recipe) {
       const list = pick[k];
