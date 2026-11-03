@@ -6,7 +6,7 @@
 <title>Muzyczne gry – Starsza czy młodsza? i inne</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="gry.css?v=c97417b8">
+<link rel="stylesheet" href="gry.css?v=381f6e30">
 <!-- Statystyki odwiedzin (Umami, bez ciasteczek) – liczone tylko na opublikowanej stronie -->
 <script defer src="https://cloud.umami.is/script.js" data-website-id="eb493614-1fdc-40a0-8b46-41031d410130" data-domains="karolmati22-cmd.github.io" data-exclude-hash="true"></script>
 <style>
@@ -30,7 +30,7 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
-  header {
+  body > header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -283,7 +283,7 @@
   @keyframes shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 
   @media (max-width: 760px) {
-    header { padding: 12px 16px; }
+    body > header { padding: 12px 16px; }
     main { grid-template-columns: 1fr; }
     .card { min-height: 0; padding: 26px 16px; gap: 9px; }
     .vinyl { width: 84px; height: 84px; }
@@ -295,7 +295,7 @@
   }
 
   /* ===================== Nowy wygląd (2026-11) ===================== */
-  header { background: rgba(11, 11, 20, 0.92); border-bottom: 1px solid #1f1f30; padding: 10px 20px; }
+  body > header { background: rgba(11, 11, 20, 0.92); border-bottom: 1px solid #1f1f30; padding: 10px 20px; }
   .hleft { display: flex; align-items: center; gap: 14px; min-width: 0; }
   .hdr-back { background: #2e2e42; color: var(--text); border: none; font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
   .hdr-back:hover { background: #3a3a54; }
@@ -367,10 +367,11 @@
   #endOverlay .big { font-size: 4.5rem; line-height: 1; margin: 14px 0 6px; }
 
   @media (max-width: 760px) {
-    header { padding: 8px 12px; gap: 8px 10px; }
+    body > header { padding: 8px 12px; gap: 8px 10px; }
     .hleft { gap: 8px; width: 100%; }
     h1 { font-size: 0.98rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .hleft .chip { display: none; }
+    .hleft h1 { display: none; }
     .hdr-back { padding: 6px 11px; font-size: 0.85rem; }
     .hright { gap: 10px; width: 100%; justify-content: space-between; }
     .volume input[type=range] { width: 70px; }
@@ -383,11 +384,16 @@
     .dialog.start .modes .btn { padding: 12px; font-size: 0.98rem; }
     .vs { width: 52px; height: 52px; font-size: 1rem; }
   }
+
+  body > header .brand { padding: 4px 8px 4px 2px; margin-right: 2px; border-right: 1px solid #2a2a40; border-radius: 0; }
+  body > header .brand:hover { background: none; opacity: 0.85; }
+  @media (max-width: 760px) { body > header .brand-t { font-size: 0.95rem; } body > header .brand { border-right: none; } }
 </style>
 </head>
 <body>
 <header>
   <div class="hleft">
+    <button class="back-hub brand" title="Strona główna – wszystkie gry"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button>
     <button class="hdr-back" id="hdrMenu" title="Wróć do menu gry">← Menu</button>
     <h1>Starsza czy <span>młodsza?</span><span class="chip" id="modeChip" hidden></span></h1>
   </div>
@@ -443,6 +449,7 @@
 
 <section class="screen home" id="scrHome" hidden>
   <div class="home-glow" aria-hidden="true"></div>
+  <nav class="home-nav"><button class="brand" id="homeBrand" title="Na górę strony"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button></nav>
   <header class="home-hero">
     <div class="home-hero-text">
       <span class="home-kicker">🎵 Polskie piosenki · od 1933 do dziś</span>
@@ -527,7 +534,7 @@
 
 <div class="overlay show start-page" id="startOverlay">
   <div class="dialog start">
-    <button class="back-hub link-btn">← Wszystkie gry</button>
+    <div class="start-top"><button class="back-hub brand" title="Strona główna – wszystkie gry"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button></div>
     <div class="start-hero">
       <div class="start-discs" aria-hidden="true"><span class="sd"></span><span class="sd-vs">VS</span><span class="sd sd2"></span></div>
       <h2>Starsza czy <span>młodsza?</span></h2>
@@ -582,7 +589,7 @@
 </div>
 
 <section class="screen" id="scrCzworki" hidden>
-  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🧩 Muzyczne czwórki</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-bar"><button class="back-hub brand" title="Strona główna – wszystkie gry"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button><h2>🧩 Muzyczne czwórki</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
     <p class="scr-help">Znajdź 4 grupy po 4 piosenki, które coś łączy – wykonawca, lata wydania albo motyw w tytule. Zaznacz 4 kafelki i kliknij „Sprawdź”. Kliknij ▶, żeby posłuchać.</p>
     <div class="cz-board">
@@ -614,7 +621,7 @@
 </section>
 
 <section class="screen" id="scrDetektyw" hidden>
-  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🕵️ Muzyczny detektyw</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-bar"><button class="back-hub brand" title="Strona główna – wszystkie gry"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button><h2>🕵️ Muzyczny detektyw</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
     <div class="seg det-modes" id="detModeSeg">
       <button data-m="solo" class="on">🔎 Sam zgadujesz</button>
@@ -689,7 +696,7 @@
 </section>
 
 <section class="screen" id="scrKod" hidden>
-  <div class="scr-bar"><button class="back-hub">← Gry</button><h2>🔐 Muzyczny kod</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
+  <div class="scr-bar"><button class="back-hub brand" title="Strona główna – wszystkie gry"><span class="brand-ic">🎵</span><span class="brand-t">Muzyczne <em>gry</em></span></button><h2>🔐 Muzyczny kod</h2><button class="mini-mute" title="Wycisz / włącz dźwięk">🔊</button></div>
   <div class="scr-body">
     <p class="scr-sub" id="kodSub"></p>
     <p class="scr-help">Komputer wybrał 4 z tych 8 piosenek i ułożył je od najstarszej do najmłodszej. Klikaj piosenki, żeby ułożyć swój zestaw, i kliknij „Sprawdź” – podpowiedzi pokażą, co już pasuje, a co trzeba zmienić. Masz 8 prób.</p>
@@ -2343,6 +2350,6 @@ $("aTitle").textContent = "„" + a.title + "”"; $("aArtist").textContent = a.
 $("bTitle").textContent = "„" + b.title + "”"; $("bArtist").textContent = b.artist;
 checkHash();
 </script>
-<script src="gry.js?v=ed09daa7"></script>
+<script src="gry.js?v=53daed22"></script>
 </body>
 </html>

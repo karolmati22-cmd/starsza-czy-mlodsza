@@ -108,6 +108,7 @@ function hideAllScreens() {
 }
 function showHub() {
   if (typeof DetNet !== "undefined" && DetNet.client) DetNet.leave(false);
+  if (live) leaveRoom();          // pojedynek na żywo w „Starsza czy młodsza?” – najpierw wyjdź z pokoju
   hideAllScreens();
   stopTimer(); stopAudio();
   if (location.hash) history.replaceState(null, "", location.pathname);
@@ -144,6 +145,7 @@ function renderHome() {
   if (kodLast && kodLast.date === today) $("dailyKod").textContent = kodLast.won ? `✔ Złamany dzisiaj w ${kodLast.tries}/${KOD_TRIES}` : "Dzisiaj się nie udało – jutro nowy kod";
   else { const d = store.get("scm-kod-day", null); $("dailyKod").textContent = d && d.date === today && d.rows.length ? "⏳ W trakcie – dokończ kod" : "Czeka na Ciebie – ten sam dla wszystkich graczy"; }
 }
+if ($("homeBrand")) $("homeBrand").onclick = () => $("scrHome").scrollTo({ top: 0, behavior: "smooth" });
 if ($("scrHome")) {     // (gdyby przeglądarka podała starszą wersję strony, strony głównej po prostu nie ma)
   $("homeFriendsJump").onclick = () => $("homeFriends").scrollIntoView({ behavior: "smooth" });
   $("homeLiveStarsza").onclick = () => { track("gra", { gra: "starsza", z: "strona glowna - pojedynek" }); openStarsza(); $("friendsBtn").click(); };
